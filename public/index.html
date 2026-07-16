@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ScrapeUnblocker MCP server</title>
+    <meta
+      name="description"
+      content="Hosted MCP server for ScrapeUnblocker - connect Claude to fetch any web page through your own API key."
+    />
+    <style>
+      :root { color-scheme: light dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background: #0a0a0b;
+        color: #e7e7ea;
+        display: flex;
+        justify-content: center;
+        padding: 2.5rem 1.25rem;
+      }
+      main { max-width: 640px; width: 100%; }
+      h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+      .accent { color: #4ecdc4; }
+      p { color: #b3b3b8; }
+      code, pre {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: .85rem;
+      }
+      pre {
+        background: #151518;
+        border: 1px solid #24242a;
+        border-radius: 8px;
+        padding: .9rem 1rem;
+        overflow-x: auto;
+        color: #e7e7ea;
+      }
+      a { color: #4ecdc4; }
+      .tools { list-style: none; padding: 0; margin: 1rem 0; }
+      .tools li { padding: .4rem 0; border-bottom: 1px solid #1e1e22; }
+      .tools code { color: #4ecdc4; }
+      footer { margin-top: 2rem; color: #75757c; font-size: .85rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1><span class="accent">ScrapeUnblocker</span> MCP server</h1>
+      <p>
+        A hosted <a href="https://modelcontextprotocol.io">Model Context Protocol</a>
+        server that lets Claude and other MCP clients fetch any web page through the
+        <a href="https://scrapeunblocker.com">ScrapeUnblocker</a> anti-bot API, using
+        your own API key.
+      </p>
+
+      <h2>Endpoint</h2>
+      <pre>https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY</pre>
+      <p>
+        Get your key at
+        <a href="https://app.scrapeunblocker.com">app.scrapeunblocker.com</a>.
+      </p>
+
+      <h2>Add to Claude Code</h2>
+      <pre>claude mcp add --transport http scrapeunblocker \
+  "https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY"</pre>
+
+      <h2>Tools</h2>
+      <ul class="tools">
+        <li><code>fetch_html</code> - fully rendered HTML of any URL</li>
+        <li><code>fetch_parsed</code> - AI-parsed structured JSON</li>
+        <li><code>google_search</code> - Google organic results as JSON</li>
+      </ul>
+
+      <footer>
+        Prefer a local install? Use the stdio package:
+        <code>npx -y scrapeunblocker-mcp</code>.
+        &middot; <a href="https://developers.scrapeunblocker.com">Docs</a>
+        &middot; <a href="https://github.com/ScrapeUnblocker/scrapeunblocker-mcp-remote">GitHub</a>
+      </footer>
+    </main>
+  </body>
+</html>
