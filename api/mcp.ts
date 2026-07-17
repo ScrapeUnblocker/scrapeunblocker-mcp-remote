@@ -190,10 +190,6 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           .length(2)
           .optional()
           .describe("Optional ISO country code, e.g. 'US'."),
-        rules_hint: z
-          .string()
-          .optional()
-          .describe("Optional hint about what to extract."),
       },
     },
     async (args) => {
@@ -201,7 +197,6 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       try {
         const parsed = await client.getParsed(args.url, {
           proxyCountry: args.proxy_country,
-          rulesHint: args.rules_hint,
         });
         return { content: [{ type: "text", text: JSON.stringify(parsed, null, 2) }] };
       } catch (err) {
