@@ -15,11 +15,34 @@ through ScrapeUnblocker's anti-bot API, using **your own API key**.
 https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY
 ```
 
-Get your key at https://app.scrapeunblocker.com. The key can be supplied three ways:
+Get your key at https://app.scrapeunblocker.com. Auth is dual-mode:
+
+**A. Bring your own key** (custom connector) - the key can be supplied three ways:
 
 1. `?key=YOUR_KEY` (or `?token=YOUR_KEY`) in the URL - simplest for claude.ai.
-2. `Authorization: Bearer YOUR_KEY` header.
+2. `Authorization: Bearer YOUR_KEY` header (a non-JWT value).
 3. `x-scrapeunblocker-key: YOUR_KEY` header.
+
+**B. OAuth 2.1** (for the claude.ai Connectors Directory) - the server is an OAuth
+Resource Server (MCP auth spec rev 2025-11-25) backed by Auth0 as the Authorization
+Server. Claude runs the OAuth flow, sends an Auth0 JWT as `Authorization: Bearer`, and
+the server resolves that user's ScrapeUnblocker key server-side (the token is never
+passed through to the backend, per RFC 8707). OAuth activates only when the env vars
+below are set; without them the server is static-key only.
+
+### OAuth configuration (maintainers)
+
+| Env var | Purpose |
+|---------|---------|
+| `AUTH0_ISSUER` | Auth0 issuer URL, e.g. `https://TENANT.auth0.com/` (trailing slash). Enables OAuth together with `MCP_AUDIENCE`. |
+| `MCP_AUDIENCE` | Canonical MCP URI = the Auth0 API Identifier, `https://mcp.scrapeunblocker.com/mcp`. The token `aud` must match this. |
+| `MCP_EMAIL_CLAIM` | Optional namespaced claim carrying the user's email (set by an Auth0 Post-Login Action), e.g. `https://scrapeunblocker.com/email`. Falls back to the standard `email` claim. |
+| `MCP_RESOURCE_METADATA_URL` | Optional override for the RFC 9728 metadata URL advertised in `WWW-Authenticate`. |
+| `UTILS_API_BASE_URL` | utils-api base for the `email_to_key` lookup, e.g. `https://utils-api.scrapeunblocker.com`. |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | IAM creds (SigV4, `execute-api`) for calling utils-api. |
+
+Discovery endpoints served (via `vercel.json` rewrites):
+`/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp`.
 
 ## Add it to claude.ai
 

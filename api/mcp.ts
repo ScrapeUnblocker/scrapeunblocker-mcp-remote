@@ -5,11 +5,17 @@
  * handles the one request, and tears down. No session state is kept between
  * requests, which is exactly what a serverless function wants.
  *
- * Each user brings their own ScrapeUnblocker API key. It is read, in order, from:
- *   1. the `key` (or `token`) query parameter  -> https://.../mcp?key=YOUR_KEY
- *   2. the `Authorization: Bearer <key>` header
- *   3. the `x-scrapeunblocker-key` header
- * The query-parameter form lets a claude.ai user simply paste a personalised URL.
+ * Auth is dual-mode:
+ *   A) Static key ("bring your own key") - for custom connectors:
+ *        1. the `key` (or `token`) query parameter -> https://.../mcp?key=YOUR_KEY
+ *        2. the `x-scrapeunblocker-key` header
+ *        3. a non-JWT `Authorization: Bearer <key>` header
+ *   B) OAuth 2.1 (for the claude.ai Connectors Directory): a JWT
+ *      `Authorization: Bearer <access_token>` minted by Auth0. We verify it as an
+ *      OAuth Resource Server (audience-bound per RFC 8707), read the user's email
+ *      claim, and resolve THAT user's ScrapeUnblocker key server-side (the token
+ *      is never passed through). OAuth activates only when AUTH0_ISSUER +
+ *      MCP_AUDIENCE are set; otherwise the server is static-key only, as before.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -17,8 +23,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { ScrapeUnblockerClient } from "scrapeunblocker";
+import { oauthConfig, looksLikeJwt, verifyAccessToken, wwwAuthenticate } from "./_lib/oauth.js";
+import { emailToKey } from "./_lib/resolveKey.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
+
+const RESOURCE_METADATA_URL =
+  process.env.MCP_RESOURCE_METADATA_URL ||
+  "https://mcp.scrapeunblocker.com/.well-known/oauth-protected-resource";
 
 type VercelRequest = IncomingMessage & {
   query: Record<string, string | string[]>;
@@ -35,20 +47,45 @@ function firstValue(v: string | string[] | undefined): string | undefined {
   return v;
 }
 
-/** Pull the user's API key from query param or header. */
-function resolveApiKey(req: VercelRequest): string | undefined {
+type AuthOk = { key: string };
+type AuthFail = { status: number; error: string; challenge: boolean };
+
+/**
+ * Resolve the ScrapeUnblocker key for this request, from a static key (query /
+ * header) or an OAuth JWT (verified, then email -> key). `challenge` marks the
+ * failures where we should emit a WWW-Authenticate header (missing / invalid
+ * token), vs a plain authorization failure (valid token, but no key for the
+ * account).
+ */
+async function authenticate(req: VercelRequest): Promise<AuthOk | AuthFail> {
   const q = req.query || {};
   const fromQuery = firstValue(q.key) || firstValue(q.token);
-  if (fromQuery) return fromQuery;
+  if (fromQuery) return { key: fromQuery };
+
+  const custom = req.headers["x-scrapeunblocker-key"];
+  if (typeof custom === "string" && custom) return { key: custom };
 
   const auth = req.headers["authorization"];
   if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
-    return auth.slice(7).trim();
+    const token = auth.slice(7).trim();
+    // OAuth path: a JWT Bearer token, only when the AS is configured.
+    if (token && oauthConfig() && looksLikeJwt(token)) {
+      const verified = await verifyAccessToken(token);
+      if (!verified) return { status: 401, error: "invalid_token", challenge: true };
+      if (!verified.email) {
+        return { status: 403, error: "token has no email claim", challenge: false };
+      }
+      const key = await emailToKey(verified.email);
+      if (!key) {
+        return { status: 403, error: "no ScrapeUnblocker API key for this account", challenge: false };
+      }
+      return { key };
+    }
+    // Back-compat: a non-JWT Bearer is a raw ScrapeUnblocker key.
+    if (token) return { key: token };
   }
-  const custom = req.headers["x-scrapeunblocker-key"];
-  if (typeof custom === "string" && custom) return custom;
 
-  return undefined;
+  return { status: 401, error: "missing token", challenge: true };
 }
 
 function errorText(err: unknown): string {
@@ -65,6 +102,7 @@ function buildServer(apiKey: string): McpServer {
     "fetch_html",
     {
       title: "Fetch page HTML",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description:
         "Fetch the fully rendered HTML of any web page through ScrapeUnblocker, " +
         "bypassing anti-bot protection (Cloudflare, DataDome, PerimeterX, Akamai, " +
@@ -111,6 +149,7 @@ function buildServer(apiKey: string): McpServer {
     "fetch_parsed",
     {
       title: "Fetch AI-parsed page data",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description:
         "Fetch a web page and return AI-parsed structured JSON instead of raw HTML " +
         "(product details, article content, listings).",
@@ -144,6 +183,7 @@ function buildServer(apiKey: string): McpServer {
     "google_search",
     {
       title: "Google search results",
+      annotations: { readOnlyHint: true, openWorldHint: true },
       description:
         "Run a Google search through ScrapeUnblocker and return organic results as JSON.",
       inputSchema: {
@@ -190,22 +230,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  const apiKey = resolveApiKey(req);
-  if (!apiKey) {
-    res.status(401).json({
+  const auth = await authenticate(req);
+  if (!("key" in auth)) {
+    if (auth.challenge && oauthConfig()) {
+      // Only advertise OAuth once the AS is actually configured; otherwise this
+      // stays a plain static-key 401 (no WWW-Authenticate) as before, so we never
+      // point a client at an empty authorization_servers list.
+      res.setHeader("WWW-Authenticate", wwwAuthenticate(RESOURCE_METADATA_URL, auth.error));
+    }
+    res.status(auth.status).json({
       jsonrpc: "2.0",
       error: {
         code: -32001,
         message:
-          "Missing ScrapeUnblocker API key. Append ?key=YOUR_KEY to the URL, or send " +
-          "an 'Authorization: Bearer <key>' header. Get a key at https://app.scrapeunblocker.com",
+          `Unauthorized (${auth.error}). Connect via OAuth, or bring your own key: ` +
+          "append ?key=YOUR_KEY to the URL or send 'Authorization: Bearer <key>'. " +
+          "Get a key at https://app.scrapeunblocker.com",
       },
       id: null,
     });
     return;
   }
 
-  const server = buildServer(apiKey);
+  const server = buildServer(auth.key);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
   res.on("close", () => {
