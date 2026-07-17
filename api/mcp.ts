@@ -48,7 +48,8 @@ function firstValue(v: string | string[] | undefined): string | undefined {
 }
 
 type AuthOk = { key: string };
-type AuthFail = { status: number; error: string; challenge: boolean; message?: string };
+type AuthNoAccount = { needsAccount: true; message: string };
+type AuthFail = { status: number; error: string; challenge: boolean };
 
 /**
  * Resolve the ScrapeUnblocker key for this request, from a static key (query /
@@ -57,7 +58,7 @@ type AuthFail = { status: number; error: string; challenge: boolean; message?: s
  * token), vs a plain authorization failure (valid token, but no key for the
  * account).
  */
-async function authenticate(req: VercelRequest): Promise<AuthOk | AuthFail> {
+async function authenticate(req: VercelRequest): Promise<AuthOk | AuthNoAccount | AuthFail> {
   const q = req.query || {};
   const fromQuery = firstValue(q.key) || firstValue(q.token);
   if (fromQuery) return { key: fromQuery };
@@ -77,10 +78,11 @@ async function authenticate(req: VercelRequest): Promise<AuthOk | AuthFail> {
       }
       const key = await emailToKey(verified.email);
       if (!key) {
+        // Signed in fine, but no ScrapeUnblocker account yet. Let the connection
+        // succeed and surface the guidance as a tool result (visible in chat),
+        // rather than failing the whole connection with an opaque error.
         return {
-          status: 403,
-          error: "no_account",
-          challenge: false,
+          needsAccount: true,
           message:
             "You're signed in, but there is no ScrapeUnblocker account for this email yet. " +
             "Create a free account at https://app.scrapeunblocker.com (same email), then try again.",
@@ -99,11 +101,30 @@ function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Build a fresh MCP server whose tools use this request's API key. */
-function buildServer(apiKey: string): McpServer {
+/**
+ * Build a fresh MCP server whose tools use this request's API key. When `apiKey`
+ * is null the connection still succeeds (so the connector shows "Connected"), but
+ * every tool returns `noAccountMessage` - that's the case where the user signed in
+ * via OAuth but has no ScrapeUnblocker account yet. Surfacing it as a tool result
+ * means the guidance shows up right in the chat, where the user will see it.
+ */
+function buildServer(apiKey: string | null, noAccountMessage?: string): McpServer {
   const baseUrl = process.env.SCRAPEUNBLOCKER_BASE_URL || undefined;
-  const client = new ScrapeUnblockerClient({ apiKey, baseUrl });
+  const client = apiKey ? new ScrapeUnblockerClient({ apiKey, baseUrl }) : null;
   const server = new McpServer({ name: "scrapeunblocker", version: VERSION });
+
+  const noAccount = () => ({
+    content: [
+      {
+        type: "text" as const,
+        text:
+          noAccountMessage ||
+          "No ScrapeUnblocker account for this login. Create a free account at " +
+            "https://app.scrapeunblocker.com and try again.",
+      },
+    ],
+    isError: true,
+  });
 
   server.registerTool(
     "fetch_html",
@@ -138,6 +159,7 @@ function buildServer(apiKey: string): McpServer {
       },
     },
     async (args) => {
+      if (!client) return noAccount();
       try {
         const html = await client.getPageSource(args.url, {
           proxyCountry: args.proxy_country,
@@ -174,6 +196,7 @@ function buildServer(apiKey: string): McpServer {
       },
     },
     async (args) => {
+      if (!client) return noAccount();
       try {
         const parsed = await client.getParsed(args.url, {
           proxyCountry: args.proxy_country,
@@ -210,6 +233,7 @@ function buildServer(apiKey: string): McpServer {
       },
     },
     async (args) => {
+      if (!client) return noAccount();
       try {
         const results = await client.serp(args.keyword, {
           proxyCountry: args.proxy_country,
@@ -238,7 +262,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   const auth = await authenticate(req);
-  if (!("key" in auth)) {
+  let server: McpServer;
+  if ("key" in auth) {
+    server = buildServer(auth.key);
+  } else if ("needsAccount" in auth) {
+    // Valid login, no account yet: connect anyway so the tools can return the
+    // "create an account" guidance in-chat (see buildServer).
+    server = buildServer(null, auth.message);
+  } else {
     if (auth.challenge && oauthConfig()) {
       // Only advertise OAuth once the AS is actually configured; otherwise this
       // stays a plain static-key 401 (no WWW-Authenticate) as before, so we never
@@ -250,17 +281,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       error: {
         code: -32001,
         message:
-          auth.message ||
           `Unauthorized (${auth.error}). Connect via OAuth, or bring your own key: ` +
-            "append ?key=YOUR_KEY to the URL or send 'Authorization: Bearer <key>'. " +
-            "Get a key at https://app.scrapeunblocker.com",
+          "append ?key=YOUR_KEY to the URL or send 'Authorization: Bearer <key>'. " +
+          "Get a key at https://app.scrapeunblocker.com",
       },
       id: null,
     });
     return;
   }
 
-  const server = buildServer(auth.key);
   const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
 
   res.on("close", () => {
