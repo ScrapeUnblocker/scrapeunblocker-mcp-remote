@@ -48,7 +48,7 @@ function firstValue(v: string | string[] | undefined): string | undefined {
 }
 
 type AuthOk = { key: string };
-type AuthFail = { status: number; error: string; challenge: boolean };
+type AuthFail = { status: number; error: string; challenge: boolean; message?: string };
 
 /**
  * Resolve the ScrapeUnblocker key for this request, from a static key (query /
@@ -77,7 +77,14 @@ async function authenticate(req: VercelRequest): Promise<AuthOk | AuthFail> {
       }
       const key = await emailToKey(verified.email);
       if (!key) {
-        return { status: 403, error: "no ScrapeUnblocker API key for this account", challenge: false };
+        return {
+          status: 403,
+          error: "no_account",
+          challenge: false,
+          message:
+            "You're signed in, but there is no ScrapeUnblocker account for this email yet. " +
+            "Create a free account at https://app.scrapeunblocker.com (same email), then try again.",
+        };
       }
       return { key };
     }
@@ -243,9 +250,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       error: {
         code: -32001,
         message:
+          auth.message ||
           `Unauthorized (${auth.error}). Connect via OAuth, or bring your own key: ` +
-          "append ?key=YOUR_KEY to the URL or send 'Authorization: Bearer <key>'. " +
-          "Get a key at https://app.scrapeunblocker.com",
+            "append ?key=YOUR_KEY to the URL or send 'Authorization: Bearer <key>'. " +
+            "Get a key at https://app.scrapeunblocker.com",
       },
       id: null,
     });
