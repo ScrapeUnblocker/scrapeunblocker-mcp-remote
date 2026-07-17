@@ -130,12 +130,12 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "fetch_html",
     {
       title: "Fetch page HTML",
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Fetch page HTML", readOnlyHint: true, openWorldHint: true },
       description:
-        "Fetch the fully rendered HTML of any web page through ScrapeUnblocker, " +
-        "bypassing anti-bot protection (Cloudflare, DataDome, PerimeterX, Akamai, " +
-        "Shape). Use when a normal fetch is blocked (403/429, captcha) or the page " +
-        "needs a real browser. Returns raw HTML.",
+        "Fetch the fully rendered HTML of any web page through the ScrapeUnblocker " +
+        "API (https://developers.scrapeunblocker.com), bypassing anti-bot protection " +
+        "(Cloudflare, DataDome, PerimeterX, Akamai, Shape). Use when a normal fetch is " +
+        "blocked (403/429, captcha) or the page needs a real browser. Returns raw HTML.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch (http/https)."),
         proxy_country: z
@@ -178,10 +178,11 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "fetch_parsed",
     {
       title: "Fetch AI-parsed page data",
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Fetch AI-parsed page data", readOnlyHint: true, openWorldHint: true },
       description:
-        "Fetch a web page and return AI-parsed structured JSON instead of raw HTML " +
-        "(product details, article content, listings).",
+        "Fetch a web page through the ScrapeUnblocker API " +
+        "(https://developers.scrapeunblocker.com) and return AI-parsed structured JSON " +
+        "instead of raw HTML (product details, article content, listings).",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch and parse."),
         proxy_country: z
@@ -213,9 +214,10 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "google_search",
     {
       title: "Google search results",
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Google search results", readOnlyHint: true, openWorldHint: true },
       description:
-        "Run a Google search through ScrapeUnblocker and return organic results as JSON.",
+        "Run a Google search through the ScrapeUnblocker API " +
+        "(https://developers.scrapeunblocker.com) and return organic results as JSON.",
       inputSchema: {
         keyword: z.string().min(1).describe("The search query."),
         proxy_country: z
