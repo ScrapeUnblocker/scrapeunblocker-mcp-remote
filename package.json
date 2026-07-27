@@ -3,6 +3,13 @@
   "version": "0.2.0",
   "private": true,
   "description": "Remote (HTTP) MCP server for ScrapeUnblocker, deployed as a Vercel serverless function. Connect via OAuth or with your own API key.",
+  "license": "MIT",
+  "author": "ScrapeUnblocker",
+  "homepage": "https://scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ScrapeUnblocker/scrapeunblocker-mcp-remote.git"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
