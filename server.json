@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "com.scrapeunblocker/scrapeunblocker-mcp-remote",
+  "description": "Fetch any web page's HTML, AI-parsed JSON, or Google results via the ScrapeUnblocker anti-bot API",
+  "status": "active",
+  "websiteUrl": "https://scrapeunblocker.com?utm_source=mcp-registry&utm_medium=integration&utm_campaign=mcp-remote",
+  "repository": {
+    "url": "https://github.com/ScrapeUnblocker/scrapeunblocker-mcp-remote",
+    "source": "github"
+  },
+  "version": "0.2.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.scrapeunblocker.com/mcp",
+      "headers": [
+        {
+          "name": "x-scrapeunblocker-key",
+          "description": "Your ScrapeUnblocker API key (get one at https://app.scrapeunblocker.com). Optional - you can sign in with OAuth instead.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}
