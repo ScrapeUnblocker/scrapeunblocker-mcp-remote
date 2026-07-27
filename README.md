@@ -1,7 +1,7 @@
 # ScrapeUnblocker remote MCP server
 
 A hosted (HTTP) [Model Context Protocol](https://modelcontextprotocol.io) server for
-[ScrapeUnblocker](https://scrapeunblocker.com), deployed as a Vercel serverless
+[ScrapeUnblocker](https://scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote), deployed as a Vercel serverless
 function. It lets **claude.ai** (web and mobile), Claude Desktop, Claude Code, and any
 other MCP client fetch any web page's HTML - or AI-parsed JSON, or Google results -
 through ScrapeUnblocker's anti-bot API, using **your own API key**.
@@ -15,7 +15,7 @@ through ScrapeUnblocker's anti-bot API, using **your own API key**.
 https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY
 ```
 
-Get your key at https://app.scrapeunblocker.com. Auth is dual-mode:
+Get your key at [app.scrapeunblocker.com](https://app.scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote). Auth is dual-mode:
 
 **A. Bring your own key** (custom connector) - the key can be supplied three ways:
 
