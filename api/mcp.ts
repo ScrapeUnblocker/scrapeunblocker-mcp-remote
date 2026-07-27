@@ -26,7 +26,42 @@ import { ScrapeUnblockerClient } from "scrapeunblocker";
 import { oauthConfig, looksLikeJwt, verifyAccessToken, wwwAuthenticate } from "./_lib/oauth.js";
 import { emailToKey } from "./_lib/resolveKey.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.2.1";
+
+/**
+ * JSON-RPC methods a client may call without any credentials. These only describe
+ * the server - they never reach ScrapeUnblocker or spend the caller's credits - so
+ * exposing them lets MCP directories (Glama, registries, inspectors) introspect the
+ * tool list. Anything that does real work (tools/call) still requires auth.
+ *
+ * Set MCP_PUBLIC_DISCOVERY=0 to turn this off: unauthenticated `initialize` then
+ * gets the 401 + WWW-Authenticate challenge again, which is how a client discovers
+ * that it should start the OAuth flow.
+ */
+const PUBLIC_DISCOVERY_METHODS = new Set([
+  "initialize",
+  "notifications/initialized",
+  "ping",
+  "tools/list",
+  "prompts/list",
+  "resources/list",
+  "resources/templates/list",
+]);
+
+function publicDiscoveryEnabled(): boolean {
+  return process.env.MCP_PUBLIC_DISCOVERY !== "0";
+}
+
+/** True when every message in this request is a credential-free discovery call. */
+function isDiscoveryOnly(body: unknown): boolean {
+  if (!publicDiscoveryEnabled()) return false;
+  const messages = Array.isArray(body) ? body : [body];
+  if (messages.length === 0) return false;
+  return messages.every((m) => {
+    const method = (m as { method?: unknown } | null | undefined)?.method;
+    return typeof method === "string" && PUBLIC_DISCOVERY_METHODS.has(method);
+  });
+}
 
 const RESOURCE_METADATA_URL =
   process.env.MCP_RESOURCE_METADATA_URL ||
@@ -266,6 +301,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Valid login, no account yet: connect anyway so the tools can return the
     // "create an account" guidance in-chat (see buildServer).
     server = buildServer(null, auth.message);
+  } else if (isDiscoveryOnly(req.body)) {
+    // No credentials, but the client only wants to know what this server offers.
+    // Answer it - the tool list is public anyway (it is in our docs) - while every
+    // tool still refuses to run without a key.
+    server = buildServer(
+      null,
+      "This tool needs authentication. Sign in with OAuth, or append ?key=YOUR_KEY to " +
+        "the connector URL. Get a free key at https://app.scrapeunblocker.com",
+    );
   } else {
     if (auth.challenge && oauthConfig()) {
       // Only advertise OAuth once the AS is actually configured; otherwise this

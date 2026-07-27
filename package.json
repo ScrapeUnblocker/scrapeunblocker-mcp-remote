@@ -1,6 +1,6 @@
 {
   "name": "scrapeunblocker-mcp-remote",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Remote (HTTP) MCP server for ScrapeUnblocker, deployed as a Vercel serverless function. Connect via OAuth or with your own API key.",
   "license": "MIT",
