@@ -4,7 +4,7 @@ A hosted (HTTP) [Model Context Protocol](https://modelcontextprotocol.io) server
 [ScrapeUnblocker](https://scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote), deployed as a Vercel serverless
 function. It lets **claude.ai** (web and mobile), Claude Desktop, Claude Code, and any
 other MCP client fetch any web page's HTML - or AI-parsed JSON, or Google results -
-through ScrapeUnblocker's anti-bot API, using **your own API key**.
+through ScrapeUnblocker's anti-bot API, billed to your own account.
 
 > Prefer a local install with no hosting? Use the stdio package instead:
 > [`scrapeunblocker-mcp`](https://www.npmjs.com/package/scrapeunblocker-mcp).
@@ -12,23 +12,35 @@ through ScrapeUnblocker's anti-bot API, using **your own API key**.
 ## Endpoint
 
 ```
-https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY
+https://mcp.scrapeunblocker.com/mcp
 ```
 
-Get your key at [app.scrapeunblocker.com](https://app.scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote). Auth is dual-mode:
+You need a ScrapeUnblocker account - [create a free one](https://app.scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote).
+There are two ways to authenticate, and **you only need one of them**.
 
-**A. Bring your own key** (custom connector) - the key can be supplied three ways:
+**A. Sign in with OAuth (recommended)** - nothing to copy or paste. The server is an
+OAuth 2.1 Resource Server backed by Auth0, so the client runs a standard PKCE flow, and
+the server resolves your ScrapeUnblocker key server-side from the account you signed in
+with (the token is never passed through to the backend, per RFC 8707).
 
-1. `?key=YOUR_KEY` (or `?token=YOUR_KEY`) in the URL - simplest for claude.ai.
+If your client asks for an OAuth client ID, use the public one - it is a PKCE client,
+so it carries no secret and is safe to share:
+
+```
+5BM5Wk2dE4ABkDITmuKfemPLnn3QQ8jd
+```
+
+Leave the client secret field empty.
+
+**B. Bring your own API key** - handy for scripts and clients without an OAuth flow.
+Supply the key any of three ways:
+
+1. `?key=YOUR_KEY` (or `?token=YOUR_KEY`) in the URL.
 2. `Authorization: Bearer YOUR_KEY` header (a non-JWT value).
 3. `x-scrapeunblocker-key: YOUR_KEY` header.
 
-**B. OAuth 2.1** (for the claude.ai Connectors Directory) - the server is an OAuth
-Resource Server (MCP auth spec rev 2025-11-25) backed by Auth0 as the Authorization
-Server. Claude runs the OAuth flow, sends an Auth0 JWT as `Authorization: Bearer`, and
-the server resolves that user's ScrapeUnblocker key server-side (the token is never
-passed through to the backend, per RFC 8707). OAuth activates only when the env vars
-below are set; without them the server is static-key only.
+Listing the tools (`initialize`, `tools/list`) needs no credentials at all, so MCP
+directories and inspectors can introspect the server; actually running a tool does.
 
 ### OAuth configuration (maintainers)
 
@@ -47,8 +59,14 @@ Discovery endpoints served (via `vercel.json` rewrites):
 ## Add it to claude.ai
 
 1. Settings → Connectors → **Add custom connector**.
-2. Paste your personalised URL: `https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY`
-3. Save. The tools appear across claude.ai web, mobile, and Claude Desktop.
+2. **URL:** `https://mcp.scrapeunblocker.com/mcp`
+3. Under **Advanced settings**, set **OAuth Client ID** to `5BM5Wk2dE4ABkDITmuKfemPLnn3QQ8jd`
+   and leave **OAuth Client Secret** empty.
+4. **Add**, then sign in and **Authorize**. The tools appear across claude.ai web,
+   mobile, and Claude Desktop.
+
+Or skip OAuth entirely and paste a personalised URL instead:
+`https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY`
 
 ## Add it to Claude Code
 
