@@ -78,9 +78,24 @@ claude mcp add --transport http scrapeunblocker "https://mcp.scrapeunblocker.com
 
 | Tool | What it does |
 |------|--------------|
-| `fetch_html` | Fetch the fully rendered HTML of a URL. |
+| `fetch_html` | Fetch the fully rendered HTML of a URL. Optionally pass `steps` to interact with the page (search, click, type, paginate) in a real browser before capture. |
 | `fetch_parsed` | Fetch a page and return AI-parsed structured JSON. |
 | `google_search` | Run a Google search and return organic results as JSON. |
+| `list_elements` | Return a page's interactive elements (buttons, inputs, selects, links, forms) with ready-to-use selectors, as JSON, to build `steps`. |
+
+### Interacting with a page (`steps`)
+
+`fetch_html` accepts an optional `steps` array - an ordered list of browser
+actions run in a real browser **after** the page loads, before the HTML is
+captured. Supported actions: `wait_for`, `wait_for_text`, `wait`, `click`,
+`type` (human-like keystrokes), `select`, `press_key`, `scroll`. A typical flow
+is: call `list_elements` to discover selectors, then call `fetch_html` with
+`steps` to drive the page.
+
+Steps are **non-idempotent** - the request runs once and is not retried. If a
+step fails (bad selector, element never appeared), the tool returns an HTTP 422
+result naming the offending step (`step_index`, `action`, `reason`, `selector`)
+plus the page HTML at the point of failure, so you can correct the step.
 
 ## Deploy (maintainers)
 

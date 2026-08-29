@@ -25,8 +25,9 @@ import { z } from "zod";
 import { ScrapeUnblockerClient } from "scrapeunblocker";
 import { oauthConfig, looksLikeJwt, verifyAccessToken, wwwAuthenticate } from "./_lib/oauth.js";
 import { emailToKey } from "./_lib/resolveKey.js";
+import { rawGetPageSource, formatStepFailure } from "./_lib/pageSource.js";
 
-const VERSION = "0.2.1";
+const VERSION = "0.3.0";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -137,6 +138,36 @@ function errorText(err: unknown): string {
 }
 
 /**
+ * One browser action for the `steps` param. The API validates these fully
+ * server-side (allowed actions, required selector/value per action, budgets),
+ * so this schema is deliberately permissive - it only shapes the JSON the model
+ * produces and documents the vocabulary. Unknown or malformed steps come back
+ * as a clear 422 `invalid_steps` rather than being rejected here.
+ */
+const stepSchema = z.object({
+  action: z
+    .enum(["wait_for", "wait_for_text", "wait", "click", "type", "select", "press_key", "scroll"])
+    .describe("The action to perform."),
+  selector: z
+    .string()
+    .optional()
+    .describe("CSS selector the action targets (required for wait_for/click/type/select)."),
+  selector_type: z
+    .enum(["css", "xPath", "className", "tagName"])
+    .optional()
+    .describe("How to interpret `selector` (default 'css')."),
+  value: z
+    .union([z.string(), z.number()])
+    .optional()
+    .describe(
+      "Action payload: text to type/select, text for wait_for_text, a key name " +
+        "for press_key (e.g. 'Enter'), milliseconds for wait, or 'bottom'/pixels for scroll.",
+    ),
+  clear: z.boolean().optional().describe("For 'type': clear the field first."),
+  timeout_ms: z.number().int().positive().optional().describe("Per-step timeout override in ms."),
+});
+
+/**
  * Build a fresh MCP server whose tools use this request's API key. When `apiKey`
  * is null the connection still succeeds (so the connector shows "Connected"), but
  * every tool returns `noAccountMessage` - that's the case where the user signed in
@@ -170,7 +201,9 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         "Fetch the fully rendered HTML of any web page through the ScrapeUnblocker " +
         "API (https://developers.scrapeunblocker.com), bypassing anti-bot protection " +
         "(Cloudflare, DataDome, PerimeterX, Akamai, Shape). Use when a normal fetch is " +
-        "blocked (403/429, captcha) or the page needs a real browser. Returns raw HTML.",
+        "blocked (403/429, captcha) or the page needs a real browser. Returns raw HTML. " +
+        "Pass `steps` to interact with the page (search, click, paginate) before capture - " +
+        "use the list_elements tool first to discover selectors.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch (http/https)."),
         proxy_country: z
@@ -191,10 +224,49 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           .positive()
           .optional()
           .describe("Extra seconds to wait after load."),
+        steps: z
+          .array(stepSchema)
+          .optional()
+          .describe(
+            "Ordered browser actions to run in a real browser after the page loads " +
+              "(wait_for, wait_for_text, wait, click, type [human-like], select, press_key, " +
+              "scroll), then return the resulting HTML. NON-IDEMPOTENT: it runs once and is " +
+              "not retried. A failed step returns a 422 naming the offending step plus the " +
+              "page HTML at that point. Discover selectors with list_elements first.",
+          ),
       },
     },
     async (args) => {
       if (!client) return noAccount();
+
+      // Steps path: non-idempotent browser interaction. The typed client cannot
+      // carry `steps` (or surface the structured 422), so call the API directly.
+      if (args.steps && args.steps.length > 0) {
+        if (!apiKey) return noAccount();
+        try {
+          const raw = await rawGetPageSource(apiKey, baseUrl, {
+            url: args.url,
+            proxy_country: args.proxy_country,
+            time_sleep: args.sleep_seconds,
+            method: args.wait_method,
+            value: args.wait_value,
+            steps: JSON.stringify(args.steps),
+          });
+          if (raw.status === 422) {
+            return { content: [{ type: "text", text: formatStepFailure(raw.text) }], isError: true };
+          }
+          if (!raw.ok) {
+            return {
+              content: [{ type: "text", text: `HTTP ${raw.status}: ${raw.text}` }],
+              isError: true,
+            };
+          }
+          return { content: [{ type: "text", text: raw.text }] };
+        } catch (err) {
+          return { content: [{ type: "text", text: errorText(err) }], isError: true };
+        }
+      }
+
       try {
         const html = await client.getPageSource(args.url, {
           proxyCountry: args.proxy_country,
@@ -272,6 +344,67 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           pagesToCheck: args.pages_to_check,
         });
         return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: errorText(err) }], isError: true };
+      }
+    },
+  );
+
+  server.registerTool(
+    "list_elements",
+    {
+      title: "List interactive page elements",
+      annotations: {
+        title: "List interactive page elements",
+        readOnlyHint: true,
+        openWorldHint: true,
+      },
+      description:
+        "Fetch a page through the ScrapeUnblocker API " +
+        "(https://developers.scrapeunblocker.com) and return its interactive elements " +
+        "(buttons, inputs, selects, links, forms), each with a ready-to-use selector, as " +
+        "JSON {url, count, elements:[...]} instead of raw HTML. Use it to discover what to " +
+        "target, then drive the page with the `steps` param of fetch_html.",
+      inputSchema: {
+        url: z.string().url().describe("The absolute URL to load and inspect (http/https)."),
+        proxy_country: z
+          .string()
+          .length(2)
+          .optional()
+          .describe("Optional ISO country code to route through, e.g. 'US'."),
+        wait_method: z
+          .enum(["css", "js"])
+          .optional()
+          .describe("Optional render-wait: 'css' selector or 'js' expression."),
+        wait_value: z
+          .string()
+          .optional()
+          .describe("The selector/expression paired with wait_method."),
+        sleep_seconds: z
+          .number()
+          .positive()
+          .optional()
+          .describe("Extra seconds to wait after load before inspecting."),
+      },
+    },
+    async (args) => {
+      if (!client || !apiKey) return noAccount();
+      try {
+        const raw = await rawGetPageSource(apiKey, baseUrl, {
+          url: args.url,
+          list_elements: true,
+          proxy_country: args.proxy_country,
+          method: args.wait_method,
+          value: args.wait_value,
+          time_sleep: args.sleep_seconds,
+        });
+        if (!raw.ok) {
+          return {
+            content: [{ type: "text", text: `HTTP ${raw.status}: ${raw.text}` }],
+            isError: true,
+          };
+        }
+        return { content: [{ type: "text", text: raw.text }] };
       } catch (err) {
         return { content: [{ type: "text", text: errorText(err) }], isError: true };
       }
