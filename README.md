@@ -58,7 +58,7 @@ Discovery endpoints served (via `vercel.json` rewrites):
 
 ## Add it to claude.ai
 
-1. Settings → Connectors → **Add custom connector**.
+1. Customize → Connectors → **+** → **Add custom connector**.
 2. **URL:** `https://mcp.scrapeunblocker.com/mcp`
 3. Under **Advanced settings**, set **OAuth Client ID** to `5BM5Wk2dE4ABkDITmuKfemPLnn3QQ8jd`
    and leave **OAuth Client Secret** empty.
@@ -73,6 +73,22 @@ Or skip OAuth entirely and paste a personalised URL instead:
 ```bash
 claude mcp add --transport http scrapeunblocker "https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY"
 ```
+
+## Add it to ChatGPT
+
+Use **ChatGPT on the web** ([chatgpt.com](https://chatgpt.com)) - not the desktop
+app - on a paid plan (Plus/Pro/Business/Enterprise) with developer mode. All four
+tools are read-only, so Plus is enough.
+
+1. **Settings → Plugins**, turn on **Developer mode**.
+2. In **Plugins**, click **+** to open **New Plugin**.
+3. Keep **Connection** on **Server URL**, set **Authentication** to **No Auth**,
+   tick the risk box, and paste the URL with your key:
+   `https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY`
+4. **Create**. The four tools are then available in any chat.
+
+Full walkthrough with screenshots:
+[developers.scrapeunblocker.com/sdks/chatgpt](https://developers.scrapeunblocker.com/sdks/chatgpt).
 
 ## Tools
 
