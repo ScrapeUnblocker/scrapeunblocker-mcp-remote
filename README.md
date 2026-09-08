@@ -88,7 +88,7 @@ tools are read-only, so Plus is enough.
 4. **Create**. The four tools are then available in any chat.
 
 Full walkthrough with screenshots:
-[developers.scrapeunblocker.com/sdks/chatgpt](https://developers.scrapeunblocker.com/sdks/chatgpt).
+[docs.scrapeunblocker.com/sdks/chatgpt](https://docs.scrapeunblocker.com/sdks/chatgpt).
 
 ## Tools
 

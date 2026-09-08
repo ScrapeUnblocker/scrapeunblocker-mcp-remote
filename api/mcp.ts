@@ -199,7 +199,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       annotations: { title: "Fetch page HTML", readOnlyHint: true, openWorldHint: true },
       description:
         "Fetch the fully rendered HTML of any web page through the ScrapeUnblocker " +
-        "API (https://developers.scrapeunblocker.com), bypassing anti-bot protection " +
+        "API (https://docs.scrapeunblocker.com), bypassing anti-bot protection " +
         "(Cloudflare, DataDome, PerimeterX, Akamai, Shape). Use when a normal fetch is " +
         "blocked (403/429, captcha) or the page needs a real browser. Returns raw HTML. " +
         "Pass `steps` to interact with the page (search, click, paginate) before capture - " +
@@ -288,7 +288,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       annotations: { title: "Fetch AI-parsed page data", readOnlyHint: true, openWorldHint: true },
       description:
         "Fetch a web page through the ScrapeUnblocker API " +
-        "(https://developers.scrapeunblocker.com) and return AI-parsed structured JSON " +
+        "(https://docs.scrapeunblocker.com) and return AI-parsed structured JSON " +
         "instead of raw HTML (product details, article content, listings).",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch and parse."),
@@ -319,7 +319,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       annotations: { title: "Google search results", readOnlyHint: true, openWorldHint: true },
       description:
         "Run a Google search through the ScrapeUnblocker API " +
-        "(https://developers.scrapeunblocker.com) and return organic results as JSON.",
+        "(https://docs.scrapeunblocker.com) and return organic results as JSON.",
       inputSchema: {
         keyword: z.string().min(1).describe("The search query."),
         proxy_country: z
@@ -361,7 +361,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       },
       description:
         "Fetch a page through the ScrapeUnblocker API " +
-        "(https://developers.scrapeunblocker.com) and return its interactive elements " +
+        "(https://docs.scrapeunblocker.com) and return its interactive elements " +
         "(buttons, inputs, selects, links, forms), each with a ready-to-use selector, as " +
         "JSON {url, count, elements:[...]} instead of raw HTML. Use it to discover what to " +
         "target, then drive the page with the `steps` param of fetch_html.",
