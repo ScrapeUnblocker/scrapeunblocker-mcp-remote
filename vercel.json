@@ -7,6 +7,7 @@
   },
   "rewrites": [
     { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/.well-known/openai-apps-challenge", "destination": "/api/openai-apps-challenge" },
     { "source": "/.well-known/oauth-protected-resource", "destination": "/api/oauth-protected-resource" },
     { "source": "/.well-known/oauth-protected-resource/mcp", "destination": "/api/oauth-protected-resource" }
   ]

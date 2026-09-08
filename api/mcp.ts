@@ -196,7 +196,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "fetch_html",
     {
       title: "Fetch page HTML",
-      annotations: { title: "Fetch page HTML", readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Fetch page HTML", readOnlyHint: true, openWorldHint: true, destructiveHint: false },
       description:
         "Fetch the fully rendered HTML of any web page through the ScrapeUnblocker " +
         "API (https://docs.scrapeunblocker.com), bypassing anti-bot protection " +
@@ -285,7 +285,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "fetch_parsed",
     {
       title: "Fetch AI-parsed page data",
-      annotations: { title: "Fetch AI-parsed page data", readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Fetch AI-parsed page data", readOnlyHint: true, openWorldHint: true, destructiveHint: false },
       description:
         "Fetch a web page through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com) and return AI-parsed structured JSON " +
@@ -316,7 +316,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
     "google_search",
     {
       title: "Google search results",
-      annotations: { title: "Google search results", readOnlyHint: true, openWorldHint: true },
+      annotations: { title: "Google search results", readOnlyHint: true, openWorldHint: true, destructiveHint: false },
       description:
         "Run a Google search through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com) and return organic results as JSON.",
@@ -358,6 +358,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         title: "List interactive page elements",
         readOnlyHint: true,
         openWorldHint: true,
+        destructiveHint: false,
       },
       description:
         "Fetch a page through the ScrapeUnblocker API " +
