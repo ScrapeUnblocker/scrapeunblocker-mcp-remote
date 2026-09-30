@@ -30,9 +30,11 @@ import {
   formatStepFailure,
   targetGoneStatus,
   targetGoneText,
+  isNoDataExtracted,
+  noDataExtractedText,
 } from "./_lib/pageSource.js";
 
-const VERSION = "0.3.1";
+const VERSION = "0.3.2";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -142,12 +144,18 @@ function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Tool result for a thrown error: a target 404/410 is reported as such. */
+/**
+ * Tool result for a thrown error: a target 404/410 and an empty parse are
+ * answers about the page, not tool failures, so they are reported as such.
+ */
 function errorResult(url: string, err: unknown) {
   if (err instanceof APIError) {
     const gone = targetGoneStatus(err.statusCode);
     if (gone !== null) {
       return { content: [{ type: "text" as const, text: targetGoneText(url, gone, err.body ?? "") }] };
+    }
+    if (isNoDataExtracted(err.statusCode, err.body)) {
+      return { content: [{ type: "text" as const, text: noDataExtractedText(url) }] };
     }
   }
   return { content: [{ type: "text" as const, text: errorText(err) }], isError: true };
@@ -309,7 +317,9 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       description:
         "Fetch a web page through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com) and return AI-parsed structured JSON " +
-        "instead of raw HTML (product details, article content, listings).",
+        "instead of raw HTML (product details, article content, listings). If the page " +
+        "holds no structured data, the result says so (that call is not billed) - use " +
+        "fetch_html for the page itself.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch and parse."),
         proxy_country: z

@@ -81,6 +81,27 @@ export function targetGoneStatus(status: number, originStatus?: string | null): 
 }
 
 /**
+ * True for the API's `no_data_extracted` answer: with `parsed_data` the page
+ * rendered but held no structured data. It is not billed and carries no HTML.
+ */
+export function isNoDataExtracted(status: number, body: string | undefined): boolean {
+  if (status !== 422 || !body) return false;
+  try {
+    return JSON.parse(body)?.error === "no_data_extracted";
+  } catch {
+    return false;
+  }
+}
+
+export function noDataExtractedText(url: string): string {
+  return (
+    `No structured data could be extracted from ${url}: the page loaded, but ` +
+    "nothing on it matched a structured shape. This call was not billed. To get " +
+    "the page itself, call fetch_html for the same URL."
+  );
+}
+
+/**
  * Tool text for a target that answered 404/410. It is a result, not a tool
  * failure: the page was fetched and the call billed, and a retry returns the
  * same answer - so the model must not read it as an API error to retry.
