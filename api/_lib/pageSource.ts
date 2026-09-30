@@ -25,6 +25,7 @@ export interface RawResponse {
   ok: boolean;
   contentType: string;
   text: string;
+  originStatus: string | null;
 }
 
 function buildQuery(params: RawParams): string {
@@ -60,7 +61,39 @@ export async function rawGetPageSource(
     ok: response.ok,
     contentType: response.headers.get("content-type") || "",
     text,
+    originStatus: response.headers.get("x-origin-status"),
   };
+}
+
+const TARGET_GONE = new Set([404, 410]);
+
+/**
+ * The target's own "page does not exist" answer (404/410), or null.
+ *
+ * `/getPageSource` always exists, so a 404/410 from it is the target site's
+ * answer, sent with `X-Origin-Status`. Older API versions returned that same
+ * answer as a 200 carrying the header, so the header is checked first.
+ */
+export function targetGoneStatus(status: number, originStatus?: string | null): number | null {
+  const origin = Number(originStatus);
+  if (TARGET_GONE.has(origin)) return origin;
+  return TARGET_GONE.has(status) ? status : null;
+}
+
+/**
+ * Tool text for a target that answered 404/410. It is a result, not a tool
+ * failure: the page was fetched and the call billed, and a retry returns the
+ * same answer - so the model must not read it as an API error to retry.
+ */
+export function targetGoneText(url: string, code: number, page: string): string {
+  const reason = code === 410 ? "Gone" : "Not Found";
+  const head =
+    `The target page does not exist: ${url} answered HTTP ${code} (${reason}). ` +
+    "This is the website's own answer, not a block or an API failure. The call " +
+    "was billed, and retrying returns the same result - check the URL instead.";
+  return page.trim()
+    ? `${head}\n\nThe target's own ${code} page follows:\n\n${page}`
+    : `${head}\n\nThe target sent no page body.`;
 }
 
 /**

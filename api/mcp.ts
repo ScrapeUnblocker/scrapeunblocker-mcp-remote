@@ -22,12 +22,17 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { ScrapeUnblockerClient } from "scrapeunblocker";
+import { APIError, ScrapeUnblockerClient } from "scrapeunblocker";
 import { oauthConfig, looksLikeJwt, verifyAccessToken, wwwAuthenticate } from "./_lib/oauth.js";
 import { emailToKey } from "./_lib/resolveKey.js";
-import { rawGetPageSource, formatStepFailure } from "./_lib/pageSource.js";
+import {
+  rawGetPageSource,
+  formatStepFailure,
+  targetGoneStatus,
+  targetGoneText,
+} from "./_lib/pageSource.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -135,6 +140,17 @@ async function authenticate(req: VercelRequest): Promise<AuthOk | AuthNoAccount 
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** Tool result for a thrown error: a target 404/410 is reported as such. */
+function errorResult(url: string, err: unknown) {
+  if (err instanceof APIError) {
+    const gone = targetGoneStatus(err.statusCode);
+    if (gone !== null) {
+      return { content: [{ type: "text" as const, text: targetGoneText(url, gone, err.body ?? "") }] };
+    }
+  }
+  return { content: [{ type: "text" as const, text: errorText(err) }], isError: true };
 }
 
 /**
@@ -252,6 +268,10 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
             value: args.wait_value,
             steps: JSON.stringify(args.steps),
           });
+          const gone = targetGoneStatus(raw.status, raw.originStatus);
+          if (gone !== null) {
+            return { content: [{ type: "text", text: targetGoneText(args.url, gone, raw.text) }] };
+          }
           if (raw.status === 422) {
             return { content: [{ type: "text", text: formatStepFailure(raw.text) }], isError: true };
           }
@@ -276,7 +296,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         });
         return { content: [{ type: "text", text: html }] };
       } catch (err) {
-        return { content: [{ type: "text", text: errorText(err) }], isError: true };
+        return errorResult(args.url, err);
       }
     },
   );
@@ -307,7 +327,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         });
         return { content: [{ type: "text", text: JSON.stringify(parsed, null, 2) }] };
       } catch (err) {
-        return { content: [{ type: "text", text: errorText(err) }], isError: true };
+        return errorResult(args.url, err);
       }
     },
   );
@@ -399,6 +419,10 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           value: args.wait_value,
           time_sleep: args.sleep_seconds,
         });
+        const gone = targetGoneStatus(raw.status, raw.originStatus);
+        if (gone !== null) {
+          return { content: [{ type: "text", text: targetGoneText(args.url, gone, raw.text) }] };
+        }
         if (!raw.ok) {
           return {
             content: [{ type: "text", text: `HTTP ${raw.status}: ${raw.text}` }],
