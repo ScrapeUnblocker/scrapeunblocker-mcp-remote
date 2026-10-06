@@ -30,11 +30,11 @@ import {
   formatStepFailure,
   targetGoneStatus,
   targetGoneText,
-  isNoDataExtracted,
+  noDataExtractedHtml,
   noDataExtractedText,
 } from "./_lib/pageSource.js";
 
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -145,17 +145,14 @@ function errorText(err: unknown): string {
 }
 
 /**
- * Tool result for a thrown error: a target 404/410 and an empty parse are
- * answers about the page, not tool failures, so they are reported as such.
+ * Tool result for a thrown error: a target 404/410 is an answer about the
+ * page, not a tool failure, so it is reported as such.
  */
 function errorResult(url: string, err: unknown) {
   if (err instanceof APIError) {
     const gone = targetGoneStatus(err.statusCode);
     if (gone !== null) {
       return { content: [{ type: "text" as const, text: targetGoneText(url, gone, err.body ?? "") }] };
-    }
-    if (isNoDataExtracted(err.statusCode, err.body)) {
-      return { content: [{ type: "text" as const, text: noDataExtractedText(url) }] };
     }
   }
   return { content: [{ type: "text" as const, text: errorText(err) }], isError: true };
@@ -318,8 +315,8 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         "Fetch a web page through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com) and return AI-parsed structured JSON " +
         "instead of raw HTML (product details, article content, listings). If the page " +
-        "holds no structured data, the result says so (that call is not billed) - use " +
-        "fetch_html for the page itself.",
+        "holds no structured data, the result says so and returns the rendered HTML " +
+        "instead (billed like fetch_html).",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch and parse."),
         proxy_country: z
@@ -335,6 +332,10 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
         const parsed = await client.getParsed(args.url, {
           proxyCountry: args.proxy_country,
         });
+        const noDataHtml = noDataExtractedHtml(parsed.raw);
+        if (noDataHtml !== null) {
+          return { content: [{ type: "text", text: noDataExtractedText(args.url, noDataHtml) }] };
+        }
         return { content: [{ type: "text", text: JSON.stringify(parsed, null, 2) }] };
       } catch (err) {
         return errorResult(args.url, err);

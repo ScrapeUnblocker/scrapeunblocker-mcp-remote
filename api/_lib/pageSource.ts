@@ -81,24 +81,21 @@ export function targetGoneStatus(status: number, originStatus?: string | null): 
 }
 
 /**
- * True for the API's `no_data_extracted` answer: with `parsed_data` the page
- * rendered but held no structured data. It is not billed and carries no HTML.
+ * The rendered page when `parsed_data` found nothing to extract, or null.
+ * The API still answers 200 (billed like fetch_html) with
+ * `data_extracted: false` and the page in `html`.
  */
-export function isNoDataExtracted(status: number, body: string | undefined): boolean {
-  if (status !== 422 || !body) return false;
-  try {
-    return JSON.parse(body)?.error === "no_data_extracted";
-  } catch {
-    return false;
-  }
+export function noDataExtractedHtml(raw: Record<string, unknown> | undefined): string | null {
+  if (!raw || raw.data_extracted !== false) return null;
+  return typeof raw.html === "string" ? raw.html : "";
 }
 
-export function noDataExtractedText(url: string): string {
-  return (
+export function noDataExtractedText(url: string, html: string): string {
+  const head =
     `No structured data could be extracted from ${url}: the page loaded, but ` +
-    "nothing on it matched a structured shape. This call was not billed. To get " +
-    "the page itself, call fetch_html for the same URL."
-  );
+    "nothing on it matched a structured shape. The call was billed like fetch_html, " +
+    "so the rendered page is returned instead.";
+  return html.trim() ? `${head}\n\nThe rendered HTML follows:\n\n${html}` : head;
 }
 
 /**
