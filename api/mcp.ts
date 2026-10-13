@@ -33,8 +33,9 @@ import {
   noDataExtractedHtml,
   noDataExtractedText,
 } from "./_lib/pageSource.js";
+import { registerPluginTools } from "./_lib/pluginTools.js";
 
-const VERSION = "0.3.3";
+const VERSION = "0.4.0";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -446,6 +447,12 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       }
     },
   );
+
+  registerPluginTools(server, {
+    call: (path, params) => client!.plugin(path, params),
+    errorText,
+    blocked: () => (client ? null : noAccount()),
+  });
 
   return server;
 }
