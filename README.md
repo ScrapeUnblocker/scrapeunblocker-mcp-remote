@@ -9,6 +9,8 @@ through ScrapeUnblocker's anti-bot API, billed to your own account.
 > Prefer a local install with no hosting? Use the stdio package instead:
 > [`scrapeunblocker-mcp`](https://www.npmjs.com/package/scrapeunblocker-mcp).
 
+Also listed on [Smithery](https://smithery.ai/servers/scrapeunblocker/scrapeunblocker).
+
 ## Endpoint
 
 ```
@@ -82,7 +84,7 @@ claude mcp add --transport http scrapeunblocker "https://mcp.scrapeunblocker.com
 ## Add it to ChatGPT
 
 Use **ChatGPT on the web** ([chatgpt.com](https://chatgpt.com)) - not the desktop
-app - on a paid plan (Plus/Pro/Business/Enterprise) with developer mode. All six
+app - on a paid plan (Plus/Pro/Business/Enterprise) with developer mode. All the
 tools are read-only, so Plus is enough.
 
 1. **Settings → Plugins**, turn on **Developer mode**.
@@ -90,7 +92,7 @@ tools are read-only, so Plus is enough.
 3. Keep **Connection** on **Server URL**, set **Authentication** to **No Auth**,
    tick the risk box, and paste the URL with your key:
    `https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY`
-4. **Create**. The six tools are then available in any chat.
+4. **Create**. The tools are then available in any chat.
 
 Full walkthrough with screenshots:
 [docs.scrapeunblocker.com/sdks/chatgpt](https://docs.scrapeunblocker.com/sdks/chatgpt).
@@ -105,6 +107,7 @@ Full walkthrough with screenshots:
 | `list_elements` | Return a page's interactive elements (buttons, inputs, selects, links, forms) with ready-to-use selectors, as JSON, to build `steps`. |
 | `list_plugins` | List the ready-made site plugins (100+: Amazon, Walmart, Zillow, Booking.com, Indeed, Google Trends, YouTube, App Store, ...) with their parameters. Free - it calls nothing. |
 | `run_plugin` | Run one site plugin and return its structured JSON. |
+| `amazon_search`, `amazon_product`, `amazon_reviews`, `walmart_search`, `ebay_search`, `google_shopping`, `google_local`, `maps_place_details`, `google_images`, `youtube_search`, `youtube_transcript`, `zillow_search`, `indeed_jobs`, `trustpilot_reviews`, `booking_hotels` | The most-used site plugins as tools of their own, each with its parameters in the tool schema - one call, no `list_plugins` lookup. Same JSON as `run_plugin`. |
 
 ### Interacting with a page (`steps`)
 
