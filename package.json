@@ -1,6 +1,6 @@
 {
   "name": "scrapeunblocker-mcp-remote",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Remote (HTTP) MCP server for ScrapeUnblocker, deployed as a Vercel serverless function. Connect via OAuth or with your own API key.",
   "license": "MIT",
@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "aws4": "^1.13.2",
     "jose": "^5.9.6",
     "scrapeunblocker": "^0.10.0",
@@ -25,7 +25,6 @@
   "devDependencies": {
     "@types/aws4": "^1.11.6",
     "@types/node": "^20.19.43",
-    "@vercel/node": "^5.0.0",
     "tsx": "^4.23.1",
     "typescript": "^5.4.0"
   }

@@ -35,7 +35,7 @@ import {
 } from "./_lib/pageSource.js";
 import { registerPluginTools } from "./_lib/pluginTools.js";
 
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe

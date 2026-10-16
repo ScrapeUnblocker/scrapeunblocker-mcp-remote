@@ -39,6 +39,11 @@ Supply the key any of three ways:
 2. `Authorization: Bearer YOUR_KEY` header (a non-JWT value).
 3. `x-scrapeunblocker-key: YOUR_KEY` header.
 
+Prefer a header (or OAuth) whenever your client lets you set one. The `?key=` form exists
+for clients that only accept a URL (ChatGPT, some connector UIs); a key in a URL can end
+up in client logs or history, so treat that URL like the key itself and rotate the key in
+the dashboard if it leaks.
+
 Listing the tools (`initialize`, `tools/list`) needs no credentials at all, so MCP
 directories and inspectors can introspect the server; actually running a tool does.
 
@@ -77,7 +82,7 @@ claude mcp add --transport http scrapeunblocker "https://mcp.scrapeunblocker.com
 ## Add it to ChatGPT
 
 Use **ChatGPT on the web** ([chatgpt.com](https://chatgpt.com)) - not the desktop
-app - on a paid plan (Plus/Pro/Business/Enterprise) with developer mode. All four
+app - on a paid plan (Plus/Pro/Business/Enterprise) with developer mode. All six
 tools are read-only, so Plus is enough.
 
 1. **Settings → Plugins**, turn on **Developer mode**.
@@ -85,7 +90,7 @@ tools are read-only, so Plus is enough.
 3. Keep **Connection** on **Server URL**, set **Authentication** to **No Auth**,
    tick the risk box, and paste the URL with your key:
    `https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY`
-4. **Create**. The four tools are then available in any chat.
+4. **Create**. The six tools are then available in any chat.
 
 Full walkthrough with screenshots:
 [docs.scrapeunblocker.com/sdks/chatgpt](https://docs.scrapeunblocker.com/sdks/chatgpt).
@@ -98,6 +103,8 @@ Full walkthrough with screenshots:
 | `fetch_parsed` | Fetch a page and return AI-parsed structured JSON. |
 | `google_search` | Run a Google search and return organic results as JSON. |
 | `list_elements` | Return a page's interactive elements (buttons, inputs, selects, links, forms) with ready-to-use selectors, as JSON, to build `steps`. |
+| `list_plugins` | List the ready-made site plugins (100+: Amazon, Walmart, Zillow, Booking.com, Indeed, Google Trends, YouTube, App Store, ...) with their parameters. Free - it calls nothing. |
+| `run_plugin` | Run one site plugin and return its structured JSON. |
 
 ### Interacting with a page (`steps`)
 
@@ -123,8 +130,8 @@ vercel --prod     # production
 ```
 
 Then point the `mcp.scrapeunblocker.com` domain at the Vercel project. Scraping calls
-can be slow, so the function's `maxDuration` is set to 60s (raise it on a paid Vercel
-plan if you hit timeouts on heavy pages).
+can be slow and some plugins take longer than a minute, so the function's `maxDuration`
+is set to 300s in `vercel.json`.
 
 ## License
 
