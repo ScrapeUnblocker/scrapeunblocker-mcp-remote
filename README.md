@@ -101,7 +101,8 @@ Full walkthrough with screenshots:
 
 | Tool | What it does |
 |------|--------------|
-| `fetch_html` | Fetch the fully rendered HTML of a URL. Optionally pass `steps` to interact with the page (search, click, type, paginate) in a real browser before capture. |
+| `fetch_html` | Fetch the fully rendered HTML of a URL. |
+| `browse_page` | Run `steps` on a page in a real browser (search, click, type, paginate), then return the resulting HTML. Not read-only: it acts on the website. |
 | `fetch_parsed` | Fetch a page and return AI-parsed structured JSON. |
 | `google_search` | Run a Google search and return organic results as JSON. |
 | `fetch_markdown` | Fetch a page and return it as clean Markdown: the main content with absolute links, without scripts, styles, navigation or footer. Usually 2-25% the size of the HTML, so it is the cheap way for a model to read a page. |
@@ -113,12 +114,13 @@ Full walkthrough with screenshots:
 
 ### Interacting with a page (`steps`)
 
-`fetch_html` accepts an optional `steps` array - an ordered list of browser
+`browse_page` takes a `steps` array - an ordered list of browser
 actions run in a real browser **after** the page loads, before the HTML is
 captured. Supported actions: `wait_for`, `wait_for_text`, `wait`, `click`,
 `type` (human-like keystrokes), `select`, `press_key`, `scroll`. A typical flow
-is: call `list_elements` to discover selectors, then call `fetch_html` with
-`steps` to drive the page.
+is: call `list_elements` to discover selectors, then call `browse_page` with
+`steps` to drive the page. It is the one tool not marked read-only, because
+steps act on the website.
 
 Steps are **non-idempotent** - the request runs once and is not retried. If a
 step fails (bad selector, element never appeared), the tool returns an HTTP 422
