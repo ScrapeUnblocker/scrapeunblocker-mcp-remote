@@ -104,6 +104,8 @@ Full walkthrough with screenshots:
 | `fetch_html` | Fetch the fully rendered HTML of a URL. Optionally pass `steps` to interact with the page (search, click, type, paginate) in a real browser before capture. |
 | `fetch_parsed` | Fetch a page and return AI-parsed structured JSON. |
 | `google_search` | Run a Google search and return organic results as JSON. |
+| `fetch_markdown` | Fetch a page and return it as clean Markdown: the main content with absolute links, without scripts, styles, navigation or footer. Usually 2-25% the size of the HTML, so it is the cheap way for a model to read a page. |
+| `search_and_read` | Search Google and read the top results in one call: Google's AI Overview (when there is one), the first 1-5 result pages as Markdown, and the other results as title, URL and snippet. Billed as one search plus one request per page read. |
 | `list_elements` | Return a page's interactive elements (buttons, inputs, selects, links, forms) with ready-to-use selectors, as JSON, to build `steps`. |
 | `list_plugins` | List the ready-made site plugins (100+: Amazon, Walmart, Zillow, Booking.com, Indeed, Google Trends, YouTube, App Store, ...) with their parameters. Free - it calls nothing. |
 | `run_plugin` | Run one site plugin and return its structured JSON. |
