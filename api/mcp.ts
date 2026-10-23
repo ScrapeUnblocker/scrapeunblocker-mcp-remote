@@ -27,6 +27,7 @@ import { oauthConfig, looksLikeJwt, verifyAccessToken, wwwAuthenticate } from ".
 import { emailToKey } from "./_lib/resolveKey.js";
 import {
   rawGetPageSource,
+  readPageSource,
   formatStepFailure,
   targetGoneStatus,
   targetGoneText,
@@ -36,7 +37,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -492,7 +493,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
   );
 
   registerReadingTools(server, {
-    fetchHtml: (url, options) => client!.getPageSource(url, options),
+    getPageSource: (params) => readPageSource(apiKey!, baseUrl, params),
     serp: (keyword, options) => client!.serp(keyword, options),
     fetchError: errorResult,
     errorText,

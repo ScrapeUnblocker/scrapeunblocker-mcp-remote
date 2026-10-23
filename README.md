@@ -130,6 +130,8 @@ plus the page HTML at the point of failure, so you can correct the step.
 ## Deploy (maintainers)
 
 This is a standard Vercel project - no build step, the function lives in `api/mcp.ts`.
+`npm run typecheck` and `npm test` (the tools against a local stand-in for the API)
+check it before a push.
 
 ```bash
 vercel            # preview

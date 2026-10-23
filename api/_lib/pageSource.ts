@@ -1,22 +1,27 @@
 /**
- * Raw `/getPageSource` call for the two capabilities the `scrapeunblocker` npm
- * client does not (yet) model: browser `steps` and `list_elements`.
+ * Raw `/getPageSource` calls for what the `scrapeunblocker` npm client does not
+ * (yet) model: browser `steps`, `list_elements` and `markdown`.
  *
  * The typed client's `getPageSource` hard-codes its query params and always
- * returns `.text()`, throwing a generic error on any non-2xx. Both new modes
- * need more than that: `steps` can come back as a structured **422**
- * (`step_failed` / `invalid_steps`) whose JSON body we must hand back verbatim,
- * and `list_elements` returns JSON, not HTML. So we make the request directly
- * here, mirroring the client's transport (POST, `x-scrapeunblocker-key` header,
- * same default host) but surfacing the raw status + body untouched.
+ * returns `.text()`, throwing a generic error on any non-2xx. `steps` and
+ * `list_elements` need more than that: `steps` can come back as a structured
+ * **422** (`step_failed` / `invalid_steps`) whose JSON body we must hand back
+ * verbatim, and `list_elements` returns JSON, not HTML. So `rawGetPageSource`
+ * makes the request directly, mirroring the client's transport (POST,
+ * `x-scrapeunblocker-key` header, same default host) but surfacing the raw
+ * status + body untouched.
  *
- * No automatic retries: a `steps` request is non-idempotent (it clicks, types,
- * submits), so replaying it silently would be wrong.
+ * No automatic retries there: a `steps` request is non-idempotent (it clicks,
+ * types, submits), so replaying it silently would be wrong. `readPageSource`
+ * is the read path (`markdown=true`, for fetch_markdown and search_and_read):
+ * it returns the body and retries like the client.
  */
+
+import { errorForStatus } from "scrapeunblocker";
 
 const DEFAULT_BASE_URL = "https://api.scrapeunblocker.com";
 const API_KEY_HEADER = "x-scrapeunblocker-key";
-const REQUEST_TIMEOUT_MS = 58_000; // just under the Vercel function maxDuration
+const REQUEST_TIMEOUT_MS = 58_000; // rawGetPageSource; must stay under maxDuration in vercel.json
 
 export type RawParams = Record<string, string | number | boolean | undefined | null>;
 
@@ -36,22 +41,28 @@ function buildQuery(params: RawParams): string {
   return q.toString();
 }
 
+function pageSourceUrl(baseUrl: string | undefined, params: RawParams): string {
+  const base = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
+  return `${base}/getPageSource?${buildQuery(params)}`;
+}
+
+function requestHeaders(apiKey: string): Record<string, string> {
+  return {
+    [API_KEY_HEADER]: apiKey,
+    "User-Agent": "scrapeunblocker-mcp-remote",
+    Accept: "*/*",
+  };
+}
+
 /** POST `/getPageSource` with arbitrary query params and return the raw result. */
 export async function rawGetPageSource(
   apiKey: string,
   baseUrl: string | undefined,
   params: RawParams,
 ): Promise<RawResponse> {
-  const base = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, "");
-  const url = `${base}/getPageSource?${buildQuery(params)}`;
-
-  const response = await fetch(url, {
+  const response = await fetch(pageSourceUrl(baseUrl, params), {
     method: "POST",
-    headers: {
-      [API_KEY_HEADER]: apiKey,
-      "User-Agent": "scrapeunblocker-mcp-remote",
-      Accept: "*/*",
-    },
+    headers: requestHeaders(apiKey),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
@@ -63,6 +74,59 @@ export async function rawGetPageSource(
     text,
     originStatus: response.headers.get("x-origin-status"),
   };
+}
+
+/** The SDK client's defaults, so a page read as Markdown gets fetch_html's patience. */
+const READ_TIMEOUT_MS = 180_000;
+const READ_RETRIES = 2;
+/** Busy (429) and gateway (502-504) answers: a later attempt can succeed. */
+const RETRYABLE = new Set([429, 502, 503, 504]);
+
+function backoff(attempt: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, Math.min(500 * 2 ** attempt, 8_000)));
+}
+
+/**
+ * POST `/getPageSource` for a read (fetch_markdown, search_and_read) and
+ * return the body. Unlike `rawGetPageSource` this is safe to repeat, so its
+ * transport and errors follow the SDK client: busy and gateway answers and
+ * dropped connections are retried, and a failed call throws the SDK's typed
+ * error, so a target's own 404/410 reaches `errorResult` as the APIError it
+ * handles.
+ */
+export async function readPageSource(
+  apiKey: string,
+  baseUrl: string | undefined,
+  params: RawParams,
+): Promise<string> {
+  const url = pageSourceUrl(baseUrl, params);
+  for (let attempt = 0; ; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: requestHeaders(apiKey),
+        signal: AbortSignal.timeout(READ_TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name === "TimeoutError") {
+        throw new Error(`No answer from ScrapeUnblocker within ${READ_TIMEOUT_MS / 1000} s.`);
+      }
+      if (attempt >= READ_RETRIES) {
+        throw new Error(`Could not reach ScrapeUnblocker: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      await backoff(attempt);
+      continue;
+    }
+    if (RETRYABLE.has(response.status) && attempt < READ_RETRIES) {
+      await response.body?.cancel();
+      await backoff(attempt);
+      continue;
+    }
+    const body = await response.text();
+    if (!response.ok) throw errorForStatus(response.status, body, response.headers);
+    return body;
+  }
 }
 
 const TARGET_GONE = new Set([404, 410]);
