@@ -8,7 +8,7 @@
     "url": "https://github.com/ScrapeUnblocker/scrapeunblocker-mcp-remote",
     "source": "github"
   },
-  "version": "0.12.0",
+  "version": "0.12.1",
   "remotes": [
     {
       "type": "streamable-http",
