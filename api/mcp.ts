@@ -37,7 +37,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.0";
+const VERSION = "0.13.1";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -395,7 +395,10 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
       annotations: { title: "Google search results", readOnlyHint: true, openWorldHint: true, destructiveHint: false },
       description:
         "Run a Google search through the ScrapeUnblocker API " +
-        "(https://docs.scrapeunblocker.com) and return organic results as JSON.",
+        "(https://docs.scrapeunblocker.com) and return the results page as " +
+        "JSON: organic results with their real URLs, ads, the AI Overview, " +
+        "People also ask, related searches, the knowledge panel, top stories, " +
+        "videos, local and shopping results.",
       inputSchema: {
         keyword: z.string().min(1).describe("The search query."),
         proxy_country: z
