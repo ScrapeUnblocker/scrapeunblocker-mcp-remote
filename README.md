@@ -104,7 +104,7 @@ Full walkthrough with screenshots:
 | `fetch_html` | Fetch the fully rendered HTML of a URL. |
 | `browse_page` | Run `steps` on a page in a real browser (search, click, type, paginate), then return the resulting HTML. Not read-only: it acts on the website. |
 | `fetch_parsed` | Fetch a page and return AI-parsed structured JSON. |
-| `google_search` | Run a Google search and return the results page as JSON: organic results with real URLs, ads, AI Overview, People also ask, related searches, knowledge panel, news, videos, local and shopping results. |
+| `google_search` | Run a Google search and return the results page as JSON: organic results with real URLs, favicons, sitelinks and ratings, ads, AI Overview, People also ask, related searches with links, knowledge panel, news, videos, local and shopping results. |
 | `fetch_markdown` | Fetch a page and return it as clean Markdown: the main content with absolute links, without scripts, styles, navigation or footer. Usually 2-25% the size of the HTML, so it is the cheap way for a model to read a page. |
 | `search_and_read` | Search Google and read the top results in one call: Google's AI Overview (when there is one), the first 1-5 result pages as Markdown, and the other results as title, URL and snippet. Billed as one search plus one request per page read. |
 | `list_elements` | Return a page's interactive elements (buttons, inputs, selects, links, forms) with ready-to-use selectors, as JSON, to build `steps`. |
