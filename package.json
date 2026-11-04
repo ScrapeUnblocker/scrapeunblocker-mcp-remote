@@ -1,6 +1,6 @@
 {
   "name": "scrapeunblocker-mcp-remote",
-  "version": "0.13.3",
+  "version": "0.13.4",
   "private": true,
   "description": "Remote (HTTP) MCP server for ScrapeUnblocker, deployed as a Vercel serverless function. Connect via OAuth or with your own API key.",
   "license": "MIT",
@@ -21,7 +21,7 @@
     "aws4": "^1.13.2",
     "jose": "^5.9.6",
     "scrapeunblocker": "^0.10.0",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/aws4": "^1.11.6",
