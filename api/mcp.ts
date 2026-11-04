@@ -37,7 +37,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.4";
+const VERSION = "0.13.5";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
@@ -200,7 +200,9 @@ const stepSchema = z.object({
  */
 function buildServer(apiKey: string | null, noAccountMessage?: string): McpServer {
   const baseUrl = process.env.SCRAPEUNBLOCKER_BASE_URL || undefined;
-  const client = apiKey ? new ScrapeUnblockerClient({ apiKey, baseUrl }) : null;
+  const client = apiKey
+    ? new ScrapeUnblockerClient({ apiKey, baseUrl, userAgent: `scrapeunblocker-mcp-remote/${VERSION}` })
+    : null;
   const server = new McpServer({ name: "scrapeunblocker", version: VERSION });
 
   const noAccount = () => ({
