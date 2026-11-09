@@ -37,7 +37,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.6";
+const VERSION = "0.13.7";
 
 /**
  * JSON-RPC methods a client may call without any credentials. These only describe
