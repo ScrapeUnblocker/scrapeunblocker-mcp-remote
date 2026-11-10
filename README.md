@@ -49,6 +49,11 @@ the dashboard if it leaks.
 Listing the tools (`initialize`, `tools/list`) needs no credentials at all, so MCP
 directories and inspectors can introspect the server; actually running a tool does.
 
+`https://mcp.scrapeunblocker.com/mcp/oauth` serves the same tools but answers nothing
+without credentials: an unauthenticated client gets the 401 + `WWW-Authenticate`
+challenge straight away. Use it with clients that start their OAuth flow only on that
+401, such as Cursor with a static client ID (see below).
+
 ### OAuth configuration (maintainers)
 
 | Env var | Purpose |
@@ -61,7 +66,9 @@ directories and inspectors can introspect the server; actually running a tool do
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | IAM creds (SigV4, `execute-api`) for calling utils-api. |
 
 Discovery endpoints served (via `vercel.json` rewrites):
-`/.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp`.
+`/.well-known/oauth-protected-resource`, `/.well-known/oauth-protected-resource/mcp` and
+`/.well-known/oauth-protected-resource/mcp/oauth`. All three name the same resource
+(`MCP_AUDIENCE`), so a token for `/mcp` also works on `/mcp/oauth`.
 
 ## Add it to claude.ai
 
@@ -80,6 +87,30 @@ Or skip OAuth entirely and paste a personalised URL instead:
 ```bash
 claude mcp add --transport http scrapeunblocker "https://mcp.scrapeunblocker.com/mcp?key=YOUR_API_KEY"
 ```
+
+## Add it to Cursor
+
+Add this to `~/.cursor/mcp.json` (or the project's `.cursor/mcp.json`), then click
+**Connect** next to the server in Cursor's MCP settings and sign in:
+
+```json
+{
+  "mcpServers": {
+    "scrapeunblocker": {
+      "url": "https://mcp.scrapeunblocker.com/mcp/oauth",
+      "auth": {
+        "CLIENT_ID": "D1jvSq2WpNu4Ue8WFWFTUpHsKtDfngkF",
+        "scopes": ["openid", "email", "offline_access", "mcp:use"]
+      }
+    }
+  }
+}
+```
+
+The client ID is a public PKCE client registered for Cursor's redirect URLs, so there is
+no secret. To use an API key instead, set `"url"` to
+`https://mcp.scrapeunblocker.com/mcp` and add
+`"headers": { "x-scrapeunblocker-key": "YOUR_API_KEY" }` in place of `auth`.
 
 ## Add it to ChatGPT
 

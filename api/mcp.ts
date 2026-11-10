@@ -16,6 +16,15 @@
  *      claim, and resolve THAT user's ScrapeUnblocker key server-side (the token
  *      is never passed through). OAuth activates only when AUTH0_ISSUER +
  *      MCP_AUDIENCE are set; otherwise the server is static-key only, as before.
+ *
+ * Two URLs serve the same tools:
+ *   /mcp        - discovery calls (initialize, tools/list) answer without credentials.
+ *   /mcp/oauth  - every call needs credentials, so an unauthenticated client gets the
+ *                 401 + WWW-Authenticate challenge at once. For clients that start their
+ *                 OAuth flow only on that 401 (Cursor with a static client ID). vercel.json
+ *                 rewrites it to /api/mcp?auth=oauth. It sits under /mcp so the metadata's
+ *                 resource (https://mcp.scrapeunblocker.com/mcp, the token audience) still
+ *                 covers it for clients that check the resource against the server URL.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -37,10 +46,11 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.7";
+const VERSION = "0.13.8";
 
 /**
- * JSON-RPC methods a client may call without any credentials. These only describe
+ * JSON-RPC methods a client may call on /mcp without any credentials (/mcp/oauth
+ * answers none of them, see oauthRequired). These only describe
  * the server - they never reach ScrapeUnblocker or spend the caller's credits - so
  * exposing them lets MCP directories (Glama, registries, inspectors) introspect the
  * tool list. Anything that does real work (tools/call) still requires auth.
@@ -61,6 +71,11 @@ const PUBLIC_DISCOVERY_METHODS = new Set([
 
 function publicDiscoveryEnabled(): boolean {
   return process.env.MCP_PUBLIC_DISCOVERY !== "0";
+}
+
+/** The request came in on /mcp/oauth: no credential-free answers there (see the header). */
+function oauthRequired(req: { query?: Record<string, string | string[]> }): boolean {
+  return firstValue(req.query?.auth) === "oauth";
 }
 
 /** True when every message in this request is a credential-free discovery call. */
@@ -535,7 +550,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Valid login, no account yet: connect anyway so the tools can return the
     // "create an account" guidance in-chat (see buildServer).
     server = buildServer(null, auth.message);
-  } else if (isDiscoveryOnly(req.body)) {
+  } else if (!oauthRequired(req) && isDiscoveryOnly(req.body)) {
     // No credentials, but the client only wants to know what this server offers.
     // Answer it - the tool list is public anyway (it is in our docs) - while every
     // tool still refuses to run without a key.
