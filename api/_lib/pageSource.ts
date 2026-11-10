@@ -46,10 +46,10 @@ function pageSourceUrl(baseUrl: string | undefined, params: RawParams): string {
   return `${base}/getPageSource?${buildQuery(params)}`;
 }
 
-function requestHeaders(apiKey: string): Record<string, string> {
+function requestHeaders(apiKey: string, userAgent: string): Record<string, string> {
   return {
     [API_KEY_HEADER]: apiKey,
-    "User-Agent": "scrapeunblocker-mcp-remote",
+    "User-Agent": userAgent,
     Accept: "*/*",
   };
 }
@@ -59,10 +59,11 @@ export async function rawGetPageSource(
   apiKey: string,
   baseUrl: string | undefined,
   params: RawParams,
+  userAgent = "scrapeunblocker-mcp-remote",
 ): Promise<RawResponse> {
   const response = await fetch(pageSourceUrl(baseUrl, params), {
     method: "POST",
-    headers: requestHeaders(apiKey),
+    headers: requestHeaders(apiKey, userAgent),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
@@ -98,6 +99,7 @@ export async function readPageSource(
   apiKey: string,
   baseUrl: string | undefined,
   params: RawParams,
+  userAgent = "scrapeunblocker-mcp-remote",
 ): Promise<string> {
   const url = pageSourceUrl(baseUrl, params);
   for (let attempt = 0; ; attempt++) {
@@ -105,7 +107,7 @@ export async function readPageSource(
     try {
       response = await fetch(url, {
         method: "POST",
-        headers: requestHeaders(apiKey),
+        headers: requestHeaders(apiKey, userAgent),
         signal: AbortSignal.timeout(READ_TIMEOUT_MS),
       });
     } catch (err) {

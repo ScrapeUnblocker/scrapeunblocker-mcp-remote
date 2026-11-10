@@ -46,7 +46,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.8";
+const VERSION = "0.13.9";
 
 /**
  * JSON-RPC methods a client may call on /mcp without any credentials (/mcp/oauth
@@ -207,17 +207,33 @@ const stepSchema = z.object({
 });
 
 /**
+ * The MCP app calling this server, as `mcp-host/<app>` goes into our User-Agent: the
+ * product part of the app's own User-Agent (before the first "/" or "("), reduced to
+ * [a-z0-9-], at most 32 characters. This server is stateless, so the clientInfo an app
+ * sends at initialize is gone by the time it calls a tool; its User-Agent is not.
+ */
+export function hostApp(userAgent: string | undefined): string {
+  return (userAgent ?? "")
+    .split(/[/(]/)[0]
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 32)
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
  * Build a fresh MCP server whose tools use this request's API key. When `apiKey`
  * is null the connection still succeeds (so the connector shows "Connected"), but
  * every tool returns `noAccountMessage` - that's the case where the user signed in
  * via OAuth but has no ScrapeUnblocker account yet. Surfacing it as a tool result
  * means the guidance shows up right in the chat, where the user will see it.
  */
-function buildServer(apiKey: string | null, noAccountMessage?: string): McpServer {
+function buildServer(apiKey: string | null, app: string, noAccountMessage?: string): McpServer {
   const baseUrl = process.env.SCRAPEUNBLOCKER_BASE_URL || undefined;
-  const client = apiKey
-    ? new ScrapeUnblockerClient({ apiKey, baseUrl, userAgent: `scrapeunblocker-mcp-remote/${VERSION}` })
-    : null;
+  const userAgent = app
+    ? `scrapeunblocker-mcp-remote/${VERSION} mcp-host/${app}`
+    : `scrapeunblocker-mcp-remote/${VERSION}`;
+  const client = apiKey ? new ScrapeUnblockerClient({ apiKey, baseUrl, userAgent }) : null;
   const server = new McpServer({ name: "scrapeunblocker", version: VERSION });
 
   const noAccount = () => ({
@@ -347,7 +363,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           method: args.wait_method,
           value: args.wait_value,
           steps: JSON.stringify(args.steps),
-        });
+        }, userAgent);
         const gone = targetGoneStatus(raw.status, raw.originStatus);
         if (gone !== null) {
           return { content: [{ type: "text", text: targetGoneText(args.url, gone, raw.text) }] };
@@ -495,7 +511,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
           method: args.wait_method,
           value: args.wait_value,
           time_sleep: args.sleep_seconds,
-        });
+        }, userAgent);
         const gone = targetGoneStatus(raw.status, raw.originStatus);
         if (gone !== null) {
           return { content: [{ type: "text", text: targetGoneText(args.url, gone, raw.text) }] };
@@ -514,7 +530,7 @@ function buildServer(apiKey: string | null, noAccountMessage?: string): McpServe
   );
 
   registerReadingTools(server, {
-    getPageSource: (params) => readPageSource(apiKey!, baseUrl, params),
+    getPageSource: (params) => readPageSource(apiKey!, baseUrl, params, userAgent),
     serp: (keyword, options) => client!.serp(keyword, options),
     fetchError: errorResult,
     errorText,
@@ -543,19 +559,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
   }
 
   const auth = await authenticate(req);
+  const app = hostApp(req.headers["user-agent"]);
   let server: McpServer;
   if ("key" in auth) {
-    server = buildServer(auth.key);
+    server = buildServer(auth.key, app);
   } else if ("needsAccount" in auth) {
     // Valid login, no account yet: connect anyway so the tools can return the
     // "create an account" guidance in-chat (see buildServer).
-    server = buildServer(null, auth.message);
+    server = buildServer(null, app, auth.message);
   } else if (!oauthRequired(req) && isDiscoveryOnly(req.body)) {
     // No credentials, but the client only wants to know what this server offers.
     // Answer it - the tool list is public anyway (it is in our docs) - while every
     // tool still refuses to run without a key.
     server = buildServer(
       null,
+      app,
       "This tool needs authentication. Sign in with OAuth, or append ?key=YOUR_KEY to " +
         "the connector URL. Get a free key at https://app.scrapeunblocker.com",
     );

@@ -104,7 +104,11 @@ before(async () => {
   mcp = createServer((req, res) => void vercel(req, res));
   const port = await listen(mcp);
   client = new Client({ name: "reading-tools-test", version: "1.0.0" });
-  await client.connect(new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp?key=test-key`)));
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${port}/mcp?key=test-key`), {
+      requestInit: { headers: { "user-agent": "Visual Studio Code/1.106.0 (test)" } },
+    }),
+  );
 });
 
 after(async () => {
@@ -204,10 +208,13 @@ test("search_and_read reads the top results as Markdown", async () => {
   assert.ok(result.text.endsWith("## Other results\n\n- [Other](https://other.example/): third"));
 });
 
-test("every API call names the MCP server in its User-Agent", async () => {
+test("every API call names the MCP server and the app that called it in its User-Agent", async () => {
   await call("search_and_read", { keyword: "item price", results: 2 });
   assert.ok(agents.length >= 3);
-  for (const agent of agents) assert.match(agent ?? "", /(^|\s)scrapeunblocker-mcp-remote(\/|$)/);
+  for (const agent of agents) {
+    assert.match(agent ?? "", /(^|\s)scrapeunblocker-mcp-remote\/\d/);
+    assert.match(agent ?? "", /\smcp-host\/visual-studio-code$/);
+  }
   const serp = requests.findIndex((r) => r.path === "/serpApi");
   assert.match(agents[serp] ?? "", /^scrapeunblocker-node\/\d+\.\d+\.\d+ /);
 });
