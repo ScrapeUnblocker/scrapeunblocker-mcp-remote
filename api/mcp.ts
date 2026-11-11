@@ -46,7 +46,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.9";
+const VERSION = "0.13.10";
 
 /**
  * JSON-RPC methods a client may call on /mcp without any credentials (/mcp/oauth
@@ -432,7 +432,8 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
         "JSON: organic results with their real URLs, favicons, sitelinks and " +
         "star ratings, ads, the AI Overview, People also ask, related searches " +
         "with their links, the knowledge panel, top stories, videos, local and " +
-        "shopping results.",
+        "shopping results. Set `full_urls` when you need the exact page URL of " +
+        "every result.",
       inputSchema: {
         keyword: z.string().min(1).describe("The search query."),
         proxy_country: z
@@ -447,14 +448,30 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
           .max(10)
           .optional()
           .describe("How many result pages to collect (default 1)."),
+        full_urls: z
+          .boolean()
+          .optional()
+          .describe(
+            "Wait until Google gives out every result's real URL. Set it when " +
+              "you need the exact page URL of all results (e.g. to cite or open " +
+              "them); leave it off for quick answers. Google releases a results " +
+              "page's links a few at a time, the last ones up to about 40 seconds " +
+              "after the search: without it a result whose link has not come yet " +
+              "has the site's home page as its `url` (or a Google redirect link), " +
+              "with it the call takes up to about 40 seconds longer. Billed the same.",
+          ),
       },
     },
     async (args) => {
       if (!client) return noAccount();
       try {
-        const results = await client.serp(args.keyword, {
-          proxyCountry: args.proxy_country,
-          pagesToCheck: args.pages_to_check,
+        // Through plugin() because serp() only sends the options it knows, and
+        // full_urls is not among them. The request is otherwise what serp() sends.
+        const results = await client.plugin("/serpApi", {
+          keyword: args.keyword,
+          proxy_country: args.proxy_country,
+          pages_to_check: args.pages_to_check ?? 1,
+          full_urls: args.full_urls ? true : undefined,
         });
         return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
       } catch (err) {
