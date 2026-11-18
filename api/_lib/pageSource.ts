@@ -187,6 +187,32 @@ export function targetGoneText(url: string, code: number, page: string): string 
  * a validation failure. We keep the machine-readable JSON but lead with a plain
  * sentence so the model sees exactly which step to fix.
  */
+/** One XHR/fetch response from a `capture_xhr` answer. */
+export interface CapturedCall {
+  url?: string;
+  method?: string;
+  status?: number;
+  content_type?: string | null;
+  body?: string | null;
+  body_omitted?: string;
+}
+
+/** Captured calls as text for the model: a header line each, then its body, capped at `maxChars`. */
+export function capturedCallsText(calls: CapturedCall[], maxChars: number): string {
+  const text = calls
+    .map((c, i) => {
+      const head =
+        `[${i}] ${c.status ?? 0} ${c.method ?? "GET"} ${c.url ?? ""}` +
+        (c.content_type ? ` (${c.content_type})` : "");
+      const body =
+        typeof c.body === "string" ? c.body : `(no body: ${c.body_omitted ?? "unavailable"})`;
+      return `${head}\n${body}`;
+    })
+    .join("\n\n");
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars)}\n\n[Cut at ${maxChars} of ${text.length} characters. Raise max_chars or narrow capture_xhr.]`;
+}
+
 export function formatStepFailure(body: string): string {
   let parsed: Record<string, unknown> | null = null;
   try {

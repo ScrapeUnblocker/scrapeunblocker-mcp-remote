@@ -37,6 +37,8 @@ import { emailToKey } from "./_lib/resolveKey.js";
 import {
   rawGetPageSource,
   readPageSource,
+  capturedCallsText,
+  type CapturedCall,
   formatStepFailure,
   targetGoneStatus,
   targetGoneText,
@@ -46,7 +48,10 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.13.10";
+const VERSION = "0.14.0";
+
+/** Default cap on the text capture_xhr returns, so one call cannot flood the context. */
+const CAPTURE_MAX_CHARS = 60_000;
 
 /**
  * JSON-RPC methods a client may call on /mcp without any credentials (/mcp/oauth
@@ -378,6 +383,107 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
           };
         }
         return { content: [{ type: "text", text: raw.text }] };
+      } catch (err) {
+        return { content: [{ type: "text", text: errorText(err) }], isError: true };
+      }
+    },
+  );
+
+  // The page's own XHR/fetch responses (getPageSource `capture_xhr`). Not
+  // read-only for the same reason as browse_page: its optional steps act on the site.
+  server.registerTool(
+    "capture_xhr",
+    {
+      title: "Capture a page's own API calls (XHR/fetch)",
+      annotations: {
+        title: "Capture a page's own API calls (XHR/fetch)",
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+      description:
+        "Load a web page in a real browser through the ScrapeUnblocker API " +
+        "(https://docs.scrapeunblocker.com) and return the JSON its own API calls " +
+        "received: every XHR/fetch response whose URL contains `capture_xhr` (a fragment " +
+        "such as '/api/search'), in order, with status and body. Use it when a site renders " +
+        "from a JSON API that refuses direct requests: the page makes the call, so it " +
+        "succeeds. Add `steps` to make the page fire the call (a search, 'load more'); find " +
+        "selectors with list_elements first. Steps act on the website and run once; never " +
+        "use them to buy, post or change anything unless the user asked for exactly that. " +
+        "Up to 20 responses; the page HTML is not returned. Billed as one request; when the " +
+        "site refuses every matching call (403/429) the call fails and is free.",
+      inputSchema: {
+        url: z.string().url().describe("The absolute URL to open (http/https)."),
+        capture_xhr: z
+          .string()
+          .min(1)
+          .max(500)
+          .describe(
+            "A fragment of the API URL the page calls, e.g. '/api/search' (plain substring).",
+          ),
+        steps: z
+          .array(stepSchema)
+          .optional()
+          .describe("Optional browser actions that make the page fire the call. Runs once."),
+        proxy_country: z
+          .string()
+          .length(2)
+          .optional()
+          .describe("Optional ISO country code to route through, e.g. 'US'."),
+        max_chars: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe(`Cap on the returned text (default ${CAPTURE_MAX_CHARS}).`),
+      },
+    },
+    async (args) => {
+      if (!client || !apiKey) return noAccount();
+      try {
+        const raw = await rawGetPageSource(apiKey, baseUrl, {
+          url: args.url,
+          capture_xhr: args.capture_xhr,
+          proxy_country: args.proxy_country,
+          steps: args.steps && args.steps.length ? JSON.stringify(args.steps) : undefined,
+        }, userAgent);
+        const maxChars = args.max_chars ?? CAPTURE_MAX_CHARS;
+        const gone = targetGoneStatus(raw.status, raw.originStatus);
+        if (gone !== null) {
+          return { content: [{ type: "text", text: targetGoneText(args.url, gone, raw.text) }] };
+        }
+        let payload: { xhr?: CapturedCall[]; xhr_truncated?: boolean; proxy?: string | null } = {};
+        try {
+          payload = JSON.parse(raw.text);
+        } catch {
+          // Not JSON: reported below with the raw body.
+        }
+        if (raw.status === 422) {
+          const calls = Array.isArray(payload.xhr) ? payload.xhr : [];
+          const before = calls.length
+            ? `\n\nCalls the page made before the step failed:\n\n${capturedCallsText(calls, maxChars)}`
+            : "";
+          return { content: [{ type: "text", text: formatStepFailure(raw.text) + before }], isError: true };
+        }
+        if (!raw.ok || !Array.isArray(payload.xhr)) {
+          return {
+            content: [{ type: "text", text: `HTTP ${raw.status}: ${raw.text.slice(0, 500)}` }],
+            isError: true,
+          };
+        }
+        const calls = payload.xhr;
+        const header =
+          `URL: ${args.url}\n` +
+          `Captured ${calls.length} call(s) matching ${JSON.stringify(args.capture_xhr)}` +
+          (payload.xhr_truncated ? " (more matched; only the first 20 are returned)" : "") +
+          (payload.proxy ? `, served from ${payload.proxy.toUpperCase()}` : "") +
+          ".";
+        const body = calls.length
+          ? capturedCallsText(calls, maxChars)
+          : "No XHR/fetch call matched. Check the fragment against the page's network " +
+            "requests, or add steps that make the page fire the call.";
+        return { content: [{ type: "text", text: `${header}\n\n${body}` }] };
       } catch (err) {
         return { content: [{ type: "text", text: errorText(err) }], isError: true };
       }
