@@ -48,7 +48,10 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.14.2";
+const VERSION = "0.14.3";
+
+/** Served from public/icon.png; MCP clients and directories show it next to the server name. */
+const SERVER_ICON_URL = "https://mcp.scrapeunblocker.com/icon.png";
 
 /** Default cap on the text capture_xhr returns, so one call cannot flood the context. */
 const CAPTURE_MAX_CHARS = 60_000;
@@ -239,7 +242,13 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
     ? `scrapeunblocker-mcp-remote/${VERSION} mcp-host/${app}`
     : `scrapeunblocker-mcp-remote/${VERSION}`;
   const client = apiKey ? new ScrapeUnblockerClient({ apiKey, baseUrl, userAgent }) : null;
-  const server = new McpServer({ name: "scrapeunblocker", version: VERSION });
+  const server = new McpServer({
+    name: "scrapeunblocker",
+    title: "ScrapeUnblocker",
+    version: VERSION,
+    websiteUrl: "https://www.scrapeunblocker.com",
+    icons: [{ src: SERVER_ICON_URL, mimeType: "image/png", sizes: ["512x512"] }],
+  });
 
   const noAccount = () => ({
     content: [
