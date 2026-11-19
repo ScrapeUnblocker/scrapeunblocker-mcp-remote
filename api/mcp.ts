@@ -48,7 +48,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.14.1";
+const VERSION = "0.14.2";
 
 /** Default cap on the text capture_xhr returns, so one call cannot flood the context. */
 const CAPTURE_MAX_CHARS = 60_000;
@@ -263,9 +263,7 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
         "Fetch the fully rendered HTML of any public web page through the ScrapeUnblocker " +
         "API (https://docs.scrapeunblocker.com). The page loads in a real browser, so " +
         "JavaScript-rendered pages come back complete. Use it when you need the page markup, " +
-        "or when a plain HTTP fetch returns 403/429 or an empty page. Returns raw HTML. " +
-        "To read or summarise a page, fetch_markdown is much smaller. To click, type or " +
-        "scroll before capture, use browse_page.",
+        "or when a plain HTTP fetch returns 403/429 or an empty page. Returns raw HTML.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to fetch (http/https)."),
         proxy_country: z
@@ -321,10 +319,8 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
         "Load a web page in a real browser through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com), run ordered browser actions on it (click, " +
         "type into a search box, choose an option, press a key, scroll, wait), then " +
-        "return the resulting HTML. Discover selectors with list_elements first. Steps " +
-        "act on the website and are NOT idempotent - they run once per call and are not " +
-        "retried; never use them to buy, post, delete or change anything unless the user " +
-        "asked for exactly that. A failed step returns which step failed plus the page " +
+        "return the resulting HTML. Steps act on the website and are NOT idempotent - " +
+        "they run once per call and are not retried. A failed step returns which step failed plus the page " +
         "HTML at that point. Billed as one request.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to open (http/https)."),
@@ -408,10 +404,8 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
         "received: every XHR/fetch response whose URL contains `capture_xhr` (a fragment " +
         "such as '/api/search'), in order, with status and body. Use it when a site renders " +
         "from a JSON API that refuses direct requests: the page makes the call, so it " +
-        "succeeds. Add `steps` to make the page fire the call (a search, 'load more'); find " +
-        "selectors with list_elements first. Steps act on the website and run once; never " +
-        "use them to buy, post or change anything unless the user asked for exactly that. " +
-        "Up to 20 responses; the page HTML is not returned. Billed as one request; when the " +
+        "succeeds. Optional `steps` make the page fire the call (a search, 'load more'); " +
+        "steps act on the website and run once. Up to 20 responses; the page HTML is not returned. Billed as one request; when the " +
         "site refuses every matching call (403/429) the call fails and is free.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to open (http/https)."),
@@ -600,8 +594,8 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
         "Fetch a page through the ScrapeUnblocker API " +
         "(https://docs.scrapeunblocker.com) and return its interactive elements " +
         "(buttons, inputs, selects, links, forms), each with a ready-to-use selector, as " +
-        "JSON {url, count, elements:[...]} instead of raw HTML. Use it to discover what to " +
-        "target, then drive the page with the `steps` param of browse_page.",
+        "JSON {url, count, elements:[...]} instead of raw HTML. Use it to find the selectors " +
+        "a page's buttons, inputs and links answer to.",
       inputSchema: {
         url: z.string().url().describe("The absolute URL to load and inspect (http/https)."),
         proxy_country: z
