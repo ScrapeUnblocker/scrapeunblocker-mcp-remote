@@ -2,9 +2,10 @@
 
 A hosted (HTTP) [Model Context Protocol](https://modelcontextprotocol.io) server for
 [ScrapeUnblocker](https://scrapeunblocker.com?utm_source=mcp&utm_medium=integration&utm_campaign=mcp-remote), deployed as a Vercel serverless
-function. It lets **claude.ai** (web and mobile), Claude Desktop, Claude Code, and any
-other MCP client fetch any web page's HTML - or AI-parsed JSON, or Google results -
-through ScrapeUnblocker's anti-bot API, billed to your own account.
+function. It gives **claude.ai** (web and mobile), Claude Desktop, Claude Code, and any
+other MCP client web search and content extraction: Google results, any public web page
+as Markdown, HTML or AI-parsed JSON, and structured data from 180+ sites - billed to your
+own account.
 
 > Prefer a local install with no hosting? Use the stdio package instead:
 > [`scrapeunblocker-mcp`](https://www.npmjs.com/package/scrapeunblocker-mcp).

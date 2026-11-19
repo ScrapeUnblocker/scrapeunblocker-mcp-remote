@@ -48,7 +48,7 @@ import {
 import { registerPluginTools } from "./_lib/pluginTools.js";
 import { registerReadingTools } from "./_lib/readingTools.js";
 
-const VERSION = "0.14.0";
+const VERSION = "0.14.1";
 
 /** Default cap on the text capture_xhr returns, so one call cannot flood the context. */
 const CAPTURE_MAX_CHARS = 60_000;
@@ -260,10 +260,10 @@ function buildServer(apiKey: string | null, app: string, noAccountMessage?: stri
       title: "Fetch page HTML",
       annotations: { title: "Fetch page HTML", readOnlyHint: true, openWorldHint: true, destructiveHint: false },
       description:
-        "Fetch the fully rendered HTML of any web page through the ScrapeUnblocker " +
-        "API (https://docs.scrapeunblocker.com), bypassing anti-bot protection " +
-        "(Cloudflare, DataDome, PerimeterX, Akamai, Shape). Use when a normal fetch is " +
-        "blocked (403/429, captcha) or the page needs a real browser. Returns raw HTML. " +
+        "Fetch the fully rendered HTML of any public web page through the ScrapeUnblocker " +
+        "API (https://docs.scrapeunblocker.com). The page loads in a real browser, so " +
+        "JavaScript-rendered pages come back complete. Use it when you need the page markup, " +
+        "or when a plain HTTP fetch returns 403/429 or an empty page. Returns raw HTML. " +
         "To read or summarise a page, fetch_markdown is much smaller. To click, type or " +
         "scroll before capture, use browse_page.",
       inputSchema: {

@@ -1,14 +1,14 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
   "name": "com.scrapeunblocker/scrapeunblocker-mcp-remote",
-  "description": "Fetch any page's HTML or AI-parsed JSON, Google results, or 100+ site plugins via ScrapeUnblocker",
+  "description": "Web search and content extraction for AI: Google results, any page as Markdown or JSON",
   "status": "active",
   "websiteUrl": "https://scrapeunblocker.com?utm_source=mcp-registry&utm_medium=integration&utm_campaign=mcp-remote",
   "repository": {
     "url": "https://github.com/ScrapeUnblocker/scrapeunblocker-mcp-remote",
     "source": "github"
   },
-  "version": "0.14.0",
+  "version": "0.14.1",
   "remotes": [
     {
       "type": "streamable-http",
